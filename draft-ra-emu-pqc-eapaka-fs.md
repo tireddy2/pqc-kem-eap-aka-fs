@@ -295,7 +295,7 @@ The generated ss from Decap is the shared secret key derived from PQC KEM. The p
 ~~~
 
 where, pkR is PQC KEM public key of the receiver, ct is the ciphertext from the PQC KEM and the Encap function is perfomed by the peer only.
-The pseudo-random function binds the shared secret to the encapsulated shared secret ciphertext (ct), achieving MAL-BIND-K-CT.  ML-KEM already is MAL-BIND-K-PK as the hash of the encapsulation key (pk) is an input to the computation of the shared secret (ss). 
+The pseudo-random function binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT.  ML-KEM already is MAL-BIND-K-PK as the hash of the encapsulation key (pk) is an input to the computation of the shared secret (ss). 
 
 # Extensions to EAP-AKA' FS
 
