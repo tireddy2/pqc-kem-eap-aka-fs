@@ -286,7 +286,7 @@ The generated ss from Decap is the shared secret key derived from PQC KEM. The p
 ~~~
    MK = PRF'(IK'|CK',"EAP-AKA'"|Identity)
    ct, ss = kemEncaps(pKR)
-   MK_PQ_SHARED_SECRET = PRF'(IK'|CK'|ss|ct,"EAP-AKA' FS"| Identity)  
+   MK_PQ_SHARED_SECRET = PRF'(IK'|CK'|ss,"EAP-AKA' FS"| Identity | ct)  
    K_encr = MK[0..127]
    K_aut = MK[128..383]
    K_re = MK_PQ_SHARED_SECRET [0..255] 
@@ -355,6 +355,14 @@ The pseudo-random function binds the shared secret to the ciphertext (ct), achie
       *  EAP-Response: It contains the ciphertext (ct) from the PQC KEM Encapsulation function from the EAP peer.
 
    Because the length of the attribute must be a multiple of 4 bytes,the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
+
+# Security Considerations
+
+ML-KEM is believed to be IND-CCA secure based on multiple analyses. The ML-KEM variant and its underlying components should be selected consistently with the desired security level. For further clarity on the sizes and security levels of ML-KEM variants, please refer to the tables in Sections 12 and 13 of {{?I-D.ietf-pquip-pqc-engineers}}.
+
+The security of the ML-KEM algorithm depends on a high-quality random number generator. For further discussion on random number generation, see {{?RFC4086}}.
+
+In general, good cryptographic practice dictates that a given ML-KEM key pair should be used in only one EAP session. This practice mitigates the risk that compromise of one EAP session will compromise the security of another EAP session and is essential for maintaining forward security.
 
 # IANA Considerations
 
