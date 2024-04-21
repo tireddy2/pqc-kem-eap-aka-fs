@@ -257,7 +257,7 @@ This section defines the construction for PQC KEM in EAP-AKA' FS.
 
 We outline the following key steps in the protocol:
 
-- Server generates the PQC KEM Public key(pk), private key (sk) pair. The server will generate the AKA challenge and sends the EAP AKA' Authentication Vector (AV). The server PQC KEM key pair is derived as:
+- Server generates the PQC KEM public key(pk), private key (sk) pair. The server will generate the AKA challenge and sends the EAP AKA' Authentication Vector (AV). The server PQC KEM key pair is derived as:
 
 ~~~
    sk, pk = kemKeyGen()
@@ -295,7 +295,7 @@ The generated ss from Decap is the shared secret key derived from PQC KEM. The p
 ~~~
 
 where, pkR is PQC KEM public key of the receiver, ct is the ciphertext from the PQC KEM and the Encap function is perfomed by the peer only.
-The pseudo-random function binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT.  ML-KEM already is MAL-BIND-K-PK as the hash of the encapsulation key (pk) is an input to the computation of the shared secret (ss). 
+The pseudo-random function binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. ML-KEM already is MAL-BIND-K-PK as the hash of the encapsulation key (pk) is an input to the computation of the shared secret (ss).
 
 # Extensions to EAP-AKA' FS
 
@@ -350,9 +350,11 @@ The pseudo-random function binds the shared secret to the ciphertext (ct), achie
    
    The length of the attribute, set as other attributes in EAP-AKA {{!RFC4187}}. The length is expressed in multiples of 4 bytes.  The length includes the attribute type field, the Length field itself, and the Value field (along with any padding).
 
-   Value: 
-
+   Value:
+      
+      *  EAP-Request: It contains the PQC KEM public key from the EAP server.
       *  EAP-Response: It contains the ciphertext (ct) from the PQC KEM Encapsulation function from the EAP peer.
+
 
    Because the length of the attribute must be a multiple of 4 bytes,the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
 
