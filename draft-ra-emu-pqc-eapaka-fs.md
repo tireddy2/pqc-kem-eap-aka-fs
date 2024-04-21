@@ -360,9 +360,9 @@ The pseudo-random function binds the shared secret to the ciphertext (ct), achie
 
 # Security Considerations
 
-ML-KEM is believed to be IND-CCA secure based on multiple analyses. The ML-KEM variant and its underlying components should be selected consistently with the desired security level. For further clarity on the sizes and security levels of ML-KEM variants, please refer to the tables in Sections 12 and 13 of {{?I-D.ietf-pquip-pqc-engineers}}.
+ML-KEM is believed to be IND-CCA2 secure based on multiple analyses. The ML-KEM variant and its underlying components should be selected consistently with the desired security level. For further clarity on the sizes and security levels of ML-KEM variants, please refer to the tables in Sections 12 and 13 of {{?I-D.ietf-pquip-pqc-engineers}}.
 
-The security of the ML-KEM algorithm depends on a high-quality random number generator. For further discussion on random number generation, see {{?RFC4086}}.
+The security of the ML-KEM algorithm depends on a high-quality pseudo-random number generator. For further discussion on random number generation, see {{?RFC4086}}.
 
 In general, good cryptographic practice dictates that a given ML-KEM key pair should be used in only one EAP session. This practice mitigates the risk that compromise of one EAP session will compromise the security of another EAP session and is essential for maintaining forward security.
 
