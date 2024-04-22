@@ -324,7 +324,6 @@ The pseudo-random function binds the shared secret to the ciphertext (ct), achie
    Value: 
 
       *  EAP-Request: It contains the public key, which is the PQC KEM public key from the EAP server.
-      *  EAP-Response: It contains the ciphertext (ct) from the PQC KEM Encapsulation function from the EAP peer.
 
    Because the length of the attribute must be a multiple of 4 bytes,the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
 
@@ -352,7 +351,6 @@ The pseudo-random function binds the shared secret to the ciphertext (ct), achie
 
    Value:
       
-      *  EAP-Request: It contains the PQC KEM public key from the EAP server.
       *  EAP-Response: It contains the ciphertext (ct) from the PQC KEM Encapsulation function from the EAP peer.
 
 
