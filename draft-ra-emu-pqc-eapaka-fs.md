@@ -261,15 +261,15 @@ This section defines the construction for PQC KEM in EAP-AKA' FS.
 
 We outline the following key steps in the protocol:
 
-- Server generates the PQC KEM public key(pk), private key (sk) pair. The server will generate the AKA challenge and sends the EAP AKA' Authentication Vector (AV). The server PQC KEM key pair is derived as:
+- Server generates the PQC KEM public key(pk), private key (sk) pair. The server will generate the Authentication Vector (AV). The server PQC KEM key pair is derived as:
 
 ~~~
    sk, pk = kemKeyGen()
 ~~~
 
-- The server will store the expected response XRES, the PQC KEM private key sk. The server will forward the EAP AKA' AV to peer along with pk.
+- The server will store the expected response XRES, the PQC KEM private key sk. The server will forward the authenticator part (AUTH) of the AV to peer along with pk.
 
-- The USIM will validate the AKA challenge received, also verifies the MAC. After the verification is successful and if the peer also supports the Forward secrecy, peer will invoke kemEncaps using pk:
+- The USIM will validate the AUTN received, also verifies the MAC. After the verification is successful and if the peer also supports the Forward secrecy, peer will invoke kemEncaps using pk:
 
 ~~~
    ct, ss = kemEncaps(pk) 
@@ -277,7 +277,7 @@ We outline the following key steps in the protocol:
 
 "ct" is the ciphertext from kemEncaps whereas "ss" is shared secret key. 
 
-- The peer will send the Authentication response RES and ct to the server.
+- The peer will send the Authentication result RES and ct to the server.
 
 - The server will verify the RES with XRES. The server will use the ct and PQC KEM private key sk to generate shared secret:
 
@@ -298,7 +298,7 @@ The generated ss from kemDecaps is the shared secret key derived from kemEncaps.
    EMSK = MK_PQ_SHARED_SECRET [768..1279]
 ~~~
 
-where, pkR is PQC KEM public key of the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. The pseudo-random function binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. ML-KEM already is MAL-BIND-K-PK as the hash of the PQC KEM public key is an input to the computation of the shared secret (ss) (line 2 of ML-KEM.Encaps algorithm in FIPS203-ipd).  These computational binding properties for KEMs are defined in [CDM].
+where, pkR is PQC KEM public key from the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. The pseudo-random function (PRF') binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key is an input to the computation of the shared secret (ss) (line 2 of ML-KEM.Encaps algorithm in [FIPS203-ipd]).  These computational binding properties for KEMs are defined in [CDM].
 
 # Extensions to EAP-AKA' FS
 
