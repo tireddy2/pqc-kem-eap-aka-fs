@@ -3,7 +3,7 @@ title: "Post-Quantum Key Encapsulation Mechanisms (PQ KEMs) in EAP-AKA prime"
 abbrev: "PQ KEMs in EAP-AKA prime"
 category: std
 
-docname: draft-ra-emu-pqc-eapaka-00
+docname: draft-ra-emu-pqc-eapaka
 submissiontype: IETF
 number:
 date:
