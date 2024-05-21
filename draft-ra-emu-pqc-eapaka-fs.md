@@ -269,15 +269,15 @@ We outline the following key steps in the protocol:
 
 - The server will store the expected response XRES, the PQC KEM private key sk. The server will forward the EAP AKA' AV to peer along with pk.
 
-- The USIM will validate the AKA challenge received, also verifies the MAC-I. After the verification is successful and if the peer also supports the Forward secrecy, peer will invoke kemEncaps using pk:
+- The USIM will validate the AKA challenge received, also verifies the MAC. After the verification is successful and if the peer also supports the Forward secrecy, peer will invoke kemEncaps using pk:
 
 ~~~
    ct, ss = kemEncaps(pk) 
 ~~~
 
-"ct" is the ciphertext from PQC KEM whereas "ss" is shared secret key. 
+"ct" is the ciphertext from kemEncaps whereas "ss" is shared secret key. 
 
-- The peer will send the Authentication response RES and enc to the server.
+- The peer will send the Authentication response RES and ct to the server.
 
 - The server will verify the RES with XRES. The server will use the ct and PQC KEM private key sk to generate shared secret:
 
@@ -285,7 +285,7 @@ We outline the following key steps in the protocol:
    ss = kemDecaps(ct, sk)
 ~~~
 
-The generated ss from Decap is the shared secret key derived from PQC KEM. The peer and the server first generate the MK_PQ_SHARED_SECRET and subsequently generate MSK, EMSK as shown below:
+The generated ss from kemDecaps is the shared secret key derived from kemEncaps. The peer and the server first generate the MK_PQ_SHARED_SECRET and subsequently generate MSK, EMSK as shown below:
 
 ~~~
    MK = PRF'(IK'|CK',"EAP-AKA'"|Identity)
@@ -298,7 +298,7 @@ The generated ss from Decap is the shared secret key derived from PQC KEM. The p
    EMSK = MK_PQ_SHARED_SECRET [768..1279]
 ~~~
 
-where, pkR is PQC KEM public key of the receiver, ct is the ciphertext from the kemEncaps and the kemEncaps function is triggered by the peer only. The pseudo-random function binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. ML-KEM already is MAL-BIND-K-PK as the hash of the PQC KEM public key is an input to the computation of the shared secret (ss) (line 2 of ML-KEM.Encaps algorithm in FIPS203-ipd).  These computational binding properties for KEMs are defined in [CDM].
+where, pkR is PQC KEM public key of the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. The pseudo-random function binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. ML-KEM already is MAL-BIND-K-PK as the hash of the PQC KEM public key is an input to the computation of the shared secret (ss) (line 2 of ML-KEM.Encaps algorithm in FIPS203-ipd).  These computational binding properties for KEMs are defined in [CDM].
 
 # Extensions to EAP-AKA' FS
 
@@ -380,11 +380,11 @@ In general, good cryptographic practice dictates that a given ML-KEM key pair sh
    +=========+===============================+=========================+
    | Value   | Description                   | Reference               |
    +=========+===============================+=========================+
-   | TBA2    | MLKEM512                      | [TBD BY IANA: THIS RFC] |
+   | TBA2    | EAP-AKA' with MLKEM512        | [TBD BY IANA: THIS RFC] |
    +=========+===============================+=========================+
-   | TBA3    | MLKEM768                      | [TBD BY IANA: THIS RFC] |
+   | TBA3    | EAP-AKA' with MLKEM768        | [TBD BY IANA: THIS RFC] |
    +=========+===============================+=========================+
-   | TBA4    | MLKEM1024                     | [TBD BY IANA: THIS RFC] |
+   | TBA4    | EAP-AKA' with MLKEM1024       | [TBD BY IANA: THIS RFC] |
    +=========+===============================+=========================+
 ~~~
 
