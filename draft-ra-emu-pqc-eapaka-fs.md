@@ -3,7 +3,7 @@ title: "Post-Quantum Key Encapsulation Mechanisms (PQ KEMs) in EAP-AKA prime"
 abbrev: "PQ KEMs in EAP-AKA prime"
 category: std
 
-docname: draft-ra-emu-pqc-eapaka
+docname: draft-ra-emu-pqkem-eapaka
 submissiontype: IETF
 number:
 date:
@@ -330,21 +330,21 @@ where, pkR is PQC KEM public key from the EAP server, ct is the ciphertext from 
 
    Because the length of the attribute must be a multiple of 4 bytes,the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
 
-## AT_PUB_CT {#pqct}
+## AT_KEM_CT {#pqct}
 
-   The format of the AT_PUB_CT attribute is shown below.
+   The format of the AT_KEM_CT attribute is shown below.
 
 ~~~
       0                   1                   2                   3
       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     | AT_PUB_CT     | Length        | Value                         |
+     | AT_KEM_CT     | Length        | Value                         |
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ~~~
       
    The fields are as follows:
 
-   AT_PUB_CT:
+   AT_KEM_CT:
    
    This is set to TBA2 BY IANA.
 
@@ -370,7 +370,7 @@ In general, good cryptographic practice dictates that a given ML-KEM key pair sh
 # IANA Considerations
 
    Two new values (TBA1, TBA1) in the skippable range need to be assigned by IANA 
-   for AT_PUB_KEM ({{pqkem}}) and AT_PUB_CT ({{pqct}}) in the "Attribute Types" registry 
+   for AT_PUB_KEM ({{pqkem}}) and AT_KEM_CT ({{pqct}}) in the "Attribute Types" registry 
    under the "EAP-AKA and EAP-SIM Parameters" group.
  
    IANA is requested to update the registry "EAP-AKA' AT_KDF_FS
