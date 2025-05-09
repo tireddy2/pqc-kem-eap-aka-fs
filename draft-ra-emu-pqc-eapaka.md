@@ -303,7 +303,11 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
       0                   1                   2                   3
       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     | AT_PUB_KEM    | Length        | Value                         |
+     | AT_PUB_KEM    |   Reserved    |         Length (in bytes)     |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                                                               |
+     |                       Value (variable)                        |
+     |                                                               |
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ~~~
       
@@ -313,9 +317,15 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
    
    This is set to TBA1 BY IANA.
 
+   Reserved:
+   A 1-byte field reserved for future use. Including this field ensures that the fixed header (Type, Reserved, Length) is 4 bytes long, maintaining 4-byte alignment for the following Value field. The Reserved field MUST be set to 0 on transmission and ignored on receipt.
+
    Length:
    
-   The length of the attribute, set as other attributes in EAP-AKA {{!RFC4187}}. The length is expressed in multiples of 4 bytes.  The length includes the attribute type field, the Length field itself, and the Value field (along with any padding).
+   A 2-byte unsigned integer indicating the total length of the attribute in bytes, including the Type, 
+   Reserved, Length, and Value fields, as well as any padding. The length is expressed in multiples of 4 bytes.
+
+   This differs from the attribute format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte.The modification is necessary because PQC KEM public keys, such as those defined in ML-KEM-1024, will be 1568 bytes, which would exceed the 1024-byte limit imposed by the original EAP-AKA format.
 
    Value: 
 
@@ -331,7 +341,11 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
       0                   1                   2                   3
       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     | AT_KEM_CT     | Length        | Value                         |
+     | AT_KEM_CT     |   Reserved    |         Length (in bytes)     |
+     +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+     |                                                               |
+     |                   Value (variable)                            |
+     |                                                               |
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 ~~~
       
@@ -341,16 +355,21 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
    
    This is set to TBA2 BY IANA.
 
+   Reserved:
+   A 1-byte field reserved for future use. The Reserved field MUST be set to 0 on transmission and ignored on receipt.
+
    Length:
+
+   A 2-byte unsigned integer indicating the total length of the attribute in bytes, including the Type, Reserved, Length, and Value fields, along with any padding. The length is expressed in multiples of 4 bytes.
    
-   The length of the attribute, set as other attributes in EAP-AKA {{!RFC4187}}. The length is expressed in multiples of 4 bytes.  The length includes the attribute type field, the Length field itself, and the Value field (along with any padding).
+   This differs from the format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte. The change is necessary because ciphertexts produced by PQC KEM algorithms,such as 1588 bytes in ML-KEM-1024 will exceed the 1024 byte limit imposed by the original EAP-AKA attribute format.
 
    Value:
       
       *  EAP-Response: It contains the ciphertext (ct) from the PQC KEM Encapsulation function from the EAP peer.
 
 
-   Because the length of the attribute must be a multiple of 4 bytes,the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
+   Because the length of the attribute must be a multiple of 4 bytes, the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
 
 # ML-KEM
 
