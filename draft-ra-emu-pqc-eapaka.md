@@ -362,7 +362,7 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
 
    A 2-byte unsigned integer indicating the total length of the attribute in bytes, including the Type, Reserved, Length, and Value fields, along with any padding. The length is expressed in multiples of 4 bytes.
    
-   This differs from the format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte. The change is necessary because ciphertexts produced by PQC KEM algorithms,such as 1588 bytes in ML-KEM-1024 will exceed the 1024 byte limit imposed by the original EAP-AKA attribute format.
+   This differs from the format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte. The change is necessary because ciphertexts produced by PQC KEM algorithms,such as 1568 bytes in ML-KEM-1024 will exceed the 1024 byte limit imposed by the original EAP-AKA attribute format.
 
    Value:
       
