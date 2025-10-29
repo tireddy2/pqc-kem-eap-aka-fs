@@ -44,6 +44,7 @@ author:
 normative:
   RFC9048:
   RFC9678:
+  RFC3748:
 
 informative:
 
@@ -153,6 +154,9 @@ We suggest the following changes and enhancements:
 
 - The PQC KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
 
+- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, we split the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs into two rounds namely EAP-Request/AKA'-Challenge (1),(2) and EAP-Response/AKA'-Challenge (1), (2) respectively. The longer values are split to two, of varied length and values and sent with separate AKA'-Challenge messages.
+
+
 # Protocol Construction
 
 This section defines the construction for PQC KEM in EAP-AKA' FS. 
@@ -196,7 +200,8 @@ This section defines the construction for PQC KEM in EAP-AKA' FS.
       |      | if the peer does not support this extension.           |
       |      +-------+----------------------------+----------------+--+
       |              |                            |                |
-      |              |     EAP-Req/AKA'-Challenge |                |
+      |              | EAP-Req/AKA'-Challenge (1),|                |
+      |              |  EAP-Req/AKA'-Challenge (2)|                |
       |              |  AT_RAND, AT_AUTN, AT_KDF, |                |
       |              |   AT_KDF_FS, AT_KDF_INPUT, |                |
       |              |      AT_PUB_KEM, AT_MAC    |                |
@@ -224,7 +229,8 @@ This section defines the construction for PQC KEM in EAP-AKA' FS.
     | EAP-AKA' key values and  constructs a full response.   |     |
     +--+--------------+----------------------------+---------+     |
       |              |                            |                |
-      |              | EAP-Resp/AKA'-Challenge    |                |
+      |              |EAP-Resp/AKA'-Challenge (1),|                |
+      |              | EAP-Resp/AKA'-Challenge (2)|                |
       |              | AT_RES, AT_KEM_CT,         |                |
       |              | AT_MAC                     |                |
       |              +--------------------------->|                |
@@ -410,4 +416,4 @@ ML-KEM is believed to be IND-CCA2 secure based on multiple analyses. The ML-KEM 
 
 # Acknowledgements
 
-This draft leverages text from {{?I-D.draft-ietf-emu-aka-pfs-11}}.
+This draft leverages text from {{RFC9678}}.
