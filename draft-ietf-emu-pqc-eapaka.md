@@ -154,7 +154,28 @@ We suggest the following changes and enhancements:
 
 - The PQC KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
 
-- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, we split the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs into two rounds namely EAP-Request/AKA'-Challenge (1),(2) and EAP-Response/AKA'-Challenge (1), (2) respectively. The longer values are split to two, of varied length and values and sent with separate AKA'-Challenge messages.
+- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, we split the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs into multiple rounds. The longer values greater than MTU_SIZE are split into fragmented messages, of varied length and values and sent with separate AKA'-Challenge messages. The next section details the design rationale for message fragmentation, packet loss and splitting/assembly of packets.
+
+# Message Fragmentation, Splitting/Assembly and Handling packet loss
+
+The "More Fragments" (M) flag in the EAP header is used to indicate that a message is fragmented. The server splits the large message into smaller fragments, each of which is sent as an individual EAP packet. The peer reassembles the fragments into the original message once all fragments are received. 
+
+Fragment Acknowledgment: After receiving an EAP-Request packet with the M flag set, the peer (client) must respond with an EAP-Response packet containing no data. This serves as an acknowledgment for the fragment. The EAP server waits for this acknowledgment before sending the next fragment.
+
+Final Fragment: The last fragment is sent without the M flag, signalling the end of the fragmented message. The peer processes the reassembled message only after all fragments are received.
+
+The message is split into [1:MTU_SIZE] [2*MTU_SIZE:3*MTU_SIZE]...[N*MTU_SIZE:KEY_SIZE], if there are N fragments. For re-assembly the peer concatenates the messages in the order they were received to reconstruct.
+
+
+Packet loss can disrupt the EAP-AKA authentication process, especially when multiple round-trips are required. To mitigate packet loss:
+
+* Retransmission Mechanism: EAP includes built-in retransmission capabilities. If a response to an EAP-Request is not received within a specified timeout, the authenticator retransmits the request. Retransmissions use the same EAP identifier to distinguish them from new requests.
+
+* Timeout Configuration: Configure appropriate retransmission timeouts based on network conditions.
+
+* Duplicate Detection: The EAP identifier field ensures that duplicate packets are detected and discarded by the peer. If a duplicate request is received, the peer resends its original response without reprocessing the request.
+
+* Error Handling: If retransmissions fail after a specified number of attempts, the authentication process is terminated.
 
 
 # Protocol Construction
@@ -200,8 +221,7 @@ This section defines the construction for PQC KEM in EAP-AKA' FS.
       |      | if the peer does not support this extension.           |
       |      +-------+----------------------------+----------------+--+
       |              |                            |                |
-      |              | EAP-Req/AKA'-Challenge (1),|                |
-      |              |  EAP-Req/AKA'-Challenge (2)|                |
+      |              | EAP-Req/AKA'-Challenge,    |                |
       |              |  AT_RAND, AT_AUTN, AT_KDF, |                |
       |              |   AT_KDF_FS, AT_KDF_INPUT, |                |
       |              |      AT_PUB_KEM, AT_MAC    |                |
@@ -229,8 +249,7 @@ This section defines the construction for PQC KEM in EAP-AKA' FS.
     | EAP-AKA' key values and  constructs a full response.   |     |
     +--+--------------+----------------------------+---------+     |
       |              |                            |                |
-      |              |EAP-Resp/AKA'-Challenge (1),|                |
-      |              | EAP-Resp/AKA'-Challenge (2)|                |
+      |              |EAP-Resp/AKA'-Challenge     |                |
       |              | AT_RES, AT_KEM_CT,         |                |
       |              | AT_MAC                     |                |
       |              +--------------------------->|                |
