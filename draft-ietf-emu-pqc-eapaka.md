@@ -179,43 +179,43 @@ Packet loss can disrupt the EAP-AKA authentication process, especially when mult
 
 The following diagram details how the fragmentation works for both request and response:
 
-         Peer                  Server
-   -------------------     -------------
-                           <- EAP-Req/
+      Peer                  Server
+-------------------     -------------
+                      <- EAP-Req/
                            Identity
-   EAP-Resp/
+EAP-Resp/
    Identity (MyID) ->
                            <- EAP-Req/
                            AKA'-Challenge
                            (Other params explained in next section)
-   EAP-Resp/
+EAP-Resp/
    AKA'-Challenge
                   ->
                            <- EAP-Req/
                            AKA'-Challenge
                     (Fragment 1: L, M bits set)
-   EAP-Resp/
+EAP-Resp/
    AKA'-Challenge ->
                            <- EAP-Req/
                            AKA'-Challenge
                            (Fragment 2: M bit set)
-   EAP-Resp/
+EAP-Resp/
    AKA'-Challenge ->
                            <- EAP-Req/
                            AKA'-Challenge
                            (Fragment 3)
-   EAP-Resp/
+EAP-Resp/
    AKA'-Challenge
    (Fragment 1:
     L, M bits set)->
                             <- EAP-Req/
                            AKA'-Challenge
-   EAP-Resp/
+EAP-Resp/
    AKA'-Challenge
    (Fragment 2)->
                           <- EAP-Req/
                            AKA'-Challenge
-   EAP-Resp/
+EAP-Resp/
    AKA'-Challenge ->
                            <- EAP-Success
 
