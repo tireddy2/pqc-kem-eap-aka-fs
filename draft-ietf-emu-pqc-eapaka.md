@@ -154,7 +154,7 @@ We suggest the following changes and enhancements:
 
 - The PQC KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
 
-- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, we split the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs into multiple rounds. The longer values greater than MTU_SIZE are split into fragmented messages, of varied length and values and sent with separate AKA'-Challenge messages. The next section details the design rationale for message fragmentation, packet loss and splitting/assembly of packets.
+- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, we split both the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs into multiple rounds. The longer values greater than MTU_SIZE are split into fragmented messages, of varied length and values and sent with separate AKA'-Challenge messages for both request and response. The next section details the design rationale for message fragmentation, packet loss and splitting/assembly of packets.
 
 # Message Fragmentation, Splitting/Assembly and Handling packet loss
 
@@ -164,7 +164,7 @@ Fragment Acknowledgment: After receiving an EAP-Request packet with the M flag s
 
 Final Fragment: The last fragment is sent without the M flag, signalling the end of the fragmented message. The peer processes the reassembled message only after all fragments are received.
 
-The message is split into [1:MTU_SIZE] [2*MTU_SIZE:3*MTU_SIZE]...[N*MTU_SIZE:KEY_SIZE], if there are N fragments. For re-assembly the peer concatenates the messages in the order they were received to reconstruct.
+The message is split into [1:MTU_SIZE] [2*MTU_SIZE:3*MTU_SIZE]...[N*MTU_SIZE:KEY_SIZE], if there are N fragments. For re-assembly the peer concatenates the messages in the order they were received to reconstruct. Let MTU_SIZE be L.
 
 
 Packet loss can disrupt the EAP-AKA authentication process, especially when multiple round-trips are required. To mitigate packet loss:
@@ -177,10 +177,51 @@ Packet loss can disrupt the EAP-AKA authentication process, especially when mult
 
 * Error Handling: If retransmissions fail after a specified number of attempts, the authentication process is terminated.
 
+The following diagram details how the fragmentation works for both request and response:
+
+         Peer                  Server
+   -------------------     -------------
+                           <- EAP-Req/
+                           Identity
+   EAP-Resp/
+   Identity (MyID) ->
+                           <- EAP-Req/
+                           AKA'-Challenge
+                           (Other params explained in next section)
+   EAP-Resp/
+   AKA'-Challenge
+                  ->
+                           <- EAP-Req/
+                           AKA'-Challenge
+                    (Fragment 1: L, M bits set)
+   EAP-Resp/
+   AKA'-Challenge ->
+                           <- EAP-Req/
+                           AKA'-Challenge
+                           (Fragment 2: M bit set)
+   EAP-Resp/
+   AKA'-Challenge ->
+                           <- EAP-Req/
+                           AKA'-Challenge
+                           (Fragment 3)
+   EAP-Resp/
+   AKA'-Challenge
+   (Fragment 1:
+    L, M bits set)->
+                            <- EAP-Req/
+                           AKA'-Challenge
+   EAP-Resp/
+   AKA'-Challenge
+   (Fragment 2)->
+                          <- EAP-Req/
+                           AKA'-Challenge
+   EAP-Resp/
+   AKA'-Challenge ->
+                           <- EAP-Success
 
 # Protocol Construction
 
-This section defines the construction for PQC KEM in EAP-AKA' FS. 
+The above section outlines how the fragmentation works. This section defines the construction for PQC KEM in EAP-AKA' FS and the other params that are sent via EAP Req/Resp AKA'-Challenge.
  
 ## Protocol Call Flow
 
