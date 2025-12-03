@@ -154,20 +154,20 @@ We suggest the following changes and enhancements:
 
 - The PQC KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
 
-- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, we split both the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs into multiple rounds. The longer values greater than MTU_SIZE are split into fragmented messages, of varied length and values and sent with separate AKA'-Challenge messages for both request and response. The next section details the design rationale for message fragmentation, packet loss and splitting/assembly of packets.
+- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, both the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs are split into multiple rounds. The longer values greater than MTU_SIZE are split into fragmented messages, of varied length and values and sent with separate AKA'-Challenge messages for both request and response. The next section details the design rationale for message fragmentation, packet loss and splitting/assembly of packets.
 
 # Message Fragmentation, Splitting/Assembly and Handling packet loss
 
-The "More Fragments" (M) flag in the EAP header is used to indicate that a message is fragmented. The server splits the large message into smaller fragments, each of which is sent as an individual EAP packet. The peer reassembles the fragments into the original message once all fragments are received. 
+The "More Fragments" (M) flag in the EAP header is used to indicate that a message is fragmented. The server/peer splits the large message into smaller fragments, each of which is sent as an individual EAP packet. The peer/server reassembles the fragments into the original message once all fragments are received. 
 
-Fragment Acknowledgment: After receiving an EAP-Request packet with the M flag set, the peer (client) must respond with an EAP-Response packet containing no data. This serves as an acknowledgment for the fragment. The EAP server waits for this acknowledgment before sending the next fragment.
+Fragment Acknowledgment: After receiving an EAP-Request/EAP-Response packet with the M flag set, the peer/server must respond with an EAP-Response/EAP-Request packet containing no data. This serves as an acknowledgment for the fragment. The EAP server/client waits for this acknowledgment before sending the next fragment.
 
 Final Fragment: The last fragment is sent without the M flag, signalling the end of the fragmented message. The peer processes the reassembled message only after all fragments are received.
 
 The message is split into [1:MTU_SIZE] [2*MTU_SIZE:3*MTU_SIZE]...[N*MTU_SIZE:KEY_SIZE], if there are N fragments. For re-assembly the peer concatenates the messages in the order they were received to reconstruct. Let MTU_SIZE be L.
 
 
-Packet loss can disrupt the EAP-AKA authentication process, especially when multiple round-trips are required. To mitigate packet loss:
+Packet loss can disrupt the EAP-AKA authentication process, especially when multiple round-trips are required. If even one fragment is lost during transit, the entire original message cannot be reassembled by the server/client. The server never receives a complete Access-Request, and the authentication fails. To mitigate packet loss:
 
 * Retransmission Mechanism: EAP includes built-in retransmission capabilities. If a response to an EAP-Request is not received within a specified timeout, the authenticator retransmits the request. Retransmissions use the same EAP identifier to distinguish them from new requests.
 
