@@ -154,7 +154,7 @@ We suggest the following changes and enhancements:
 
 - The PQC KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
 
-- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, both the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs are split into multiple rounds. The longer values greater than MTU_SIZE are split into fragmented messages, of varied length and values and sent with separate AKA'-Challenge messages for both request and response. The next section details the design rationale for message fragmentation, packet loss and splitting/assembly of packets.
+- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, both the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs are split into multiple rounds. The longer values greater than MTU_SIZE are split into fragmented messages, of varied length and values and sent with separate AKA'-Challenge messages for both request and response. Both EAP-Response and EAP-Request can be fragmented. The next section details the design rationale for message fragmentation, packet loss and splitting/assembly of packets.
 
 # Message Fragmentation, Splitting/Assembly and Handling packet loss
 
