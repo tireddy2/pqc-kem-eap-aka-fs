@@ -45,6 +45,7 @@ normative:
   RFC9048:
   RFC9678:
   RFC3748:
+  RFC5216:
 
 informative:
 
@@ -154,7 +155,7 @@ We suggest the following changes and enhancements:
 
 - The PQC KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
 
-- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. Hence, as in {{RFC9678}}, both the EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge pairs are split into multiple rounds. The longer values greater than MTU_SIZE are split into fragmented messages, of varied length and values and sent with separate AKA'-Challenge messages for both request and response. Both EAP-Response and EAP-Request can be fragmented. The next section details the design rationale for message fragmentation, packet loss and splitting/assembly of packets.
+- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. As outlined in {{RFC5216}}, both EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge message pairs are broken down into multiple rounds. When the values within these messages exceed the MTU_SIZE, they are divided into fragmented messages of varying lengths and content. These fragments are then transmitted using distinct AKA'-Challenge messages for both requests and responses. Both EAP-Response and EAP-Request messages are subject to fragmentation. The following section will elaborate on the design principles behind message fragmentation, the management of packet loss, and the procedures for splitting and reassembling these packets.
 
 # Message Fragmentation, Splitting/Assembly and Handling packet loss
 
@@ -164,7 +165,7 @@ Fragment Acknowledgment: After receiving an EAP-Request/EAP-Response packet with
 
 Final Fragment: The last fragment is sent without the M flag, signalling the end of the fragmented message. The peer processes the reassembled message only after all fragments are received.
 
-The message is split into [1:MTU_SIZE] [2*MTU_SIZE:3*MTU_SIZE]...[N*MTU_SIZE:KEY_SIZE], if there are N fragments. For re-assembly the peer concatenates the messages in the order they were received to reconstruct. Let MTU_SIZE be L.
+The message is split into [1:MTU_SIZE] [2*MTU_SIZE:3*MTU_SIZE]...[N*MTU_SIZE:KEY_SIZE], if there are N fragments. For re-assembly the peer concatenates the messages in the order they were received to reconstruct. Let MTU_SIZE be L. Each fragment of an EAP message is assigned a unique sequence number (USN). This number indicates the fragment's position within the complete EAP message. In addition to USN, an EAP identifier is used to associate all fragments belonging to the same original EAP message. Each fragment is then tagged with the same EAP identifier and an incremental sequence number (USN). The peer/server collects all fragments identified by the same EAP identifier. It then uses the sequence numbers to reassemble the fragments in their original order, reconstructing the complete EAP message. If any fragments are missing or arrive out of order, the receiver can detect this and potentially request retransmission or discard the incomplete message.
 
 
 Packet loss can disrupt the EAP-AKA authentication process, especially when multiple round-trips are required. If even one fragment is lost during transit, the entire original message cannot be reassembled by the server/client. The server never receives a complete Access-Request, and the authentication fails. To mitigate packet loss:
