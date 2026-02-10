@@ -44,6 +44,8 @@ author:
 normative:
   RFC9048:
   RFC9678:
+  RFC3748:
+  RFC5216:
 
 informative:
 
@@ -153,9 +155,75 @@ We suggest the following changes and enhancements:
 
 - The PQC KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
 
+- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. As outlined in {{RFC5216}}, both EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge message pairs are broken down into multiple rounds. When the values within these messages exceed the MTU_SIZE, they are divided into fragmented messages of varying lengths and content. These fragments are then transmitted using distinct AKA'-Challenge messages for both requests and responses. Both EAP-Response and EAP-Request messages are subject to fragmentation. The following section will elaborate on the design principles behind message fragmentation, the management of packet loss, and the procedures for splitting and reassembling these packets.
+
+# Message Fragmentation, Splitting/Assembly and Handling packet loss
+
+The "More Fragments" (M) flag in the EAP header is used to indicate that a message is fragmented. The server/peer splits the large message into smaller fragments, each of which is sent as an individual EAP packet. The peer/server reassembles the fragments into the original message once all fragments are received. 
+
+Fragment Acknowledgment: After receiving an EAP-Request/EAP-Response packet with the M flag set, the peer/server must respond with an EAP-Response/EAP-Request packet containing no data. This serves as an acknowledgment for the fragment. The EAP server/client waits for this acknowledgment before sending the next fragment.
+
+Final Fragment: The last fragment is sent without the M flag, signalling the end of the fragmented message. The peer processes the reassembled message only after all fragments are received.
+
+The message is split into [1:MTU_SIZE] [2*MTU_SIZE:3*MTU_SIZE]...[N*MTU_SIZE:KEY_SIZE], if there are N fragments. For re-assembly the peer concatenates the messages in the order they were received to reconstruct. Let MTU_SIZE be L. Each fragment of an EAP message is assigned a unique sequence number (USN). This number indicates the fragment's position within the complete EAP message. In addition to USN, an EAP identifier is used to associate all fragments belonging to the same original EAP message. Each fragment is then tagged with the same EAP identifier and an incremental sequence number (USN). The peer/server collects all fragments identified by the same EAP identifier. It then uses the sequence numbers to reassemble the fragments in their original order, reconstructing the complete EAP message. If any fragments are missing or arrive out of order, the receiver can detect this and potentially request retransmission or discard the incomplete message.
+
+
+Packet loss can disrupt the EAP-AKA authentication process, especially when multiple round-trips are required. If even one fragment is lost during transit, the entire original message cannot be reassembled by the server/client. The server never receives a complete Access-Request, and the authentication fails. To mitigate packet loss:
+
+* Retransmission Mechanism: EAP includes built-in retransmission capabilities. If a response to an EAP-Request is not received within a specified timeout, the authenticator retransmits the request. Retransmissions use the same EAP identifier to distinguish them from new requests.
+
+* Timeout Configuration: Configure appropriate retransmission timeouts based on network conditions.
+
+* Duplicate Detection: The EAP identifier field ensures that duplicate packets are detected and discarded by the peer. If a duplicate request is received, the peer resends its original response without reprocessing the request.
+
+* Error Handling: If retransmissions fail after a specified number of attempts, the authentication process is terminated.
+
+The following diagram details how the fragmentation works for both request and response:
+
+Peer                                               Server  
+|                                                     | 
+|                                 <- EAP-Req/         |
+|                                      Identity       |
+|EAP-Resp/                                            |
+|   Identity (MyID) ->                                |
+|                                <- EAP-Req/          |
+|                                 AKA'-Challenge      |
+|                                (Other params        |
+|                                   explained in      |
+|                                   next section)     |
+|EAP-Resp/                                            |
+|   AKA'-Challenge ->                                 |
+|                           <- EAP-Req/               |      
+|                           AKA'-Challenge            |
+|                          (Fragment 1: L, M bits set)|
+|EAP-Resp/                                            |
+|   AKA'-Challenge ->                                 |
+|                           <- EAP-Req/               |
+|                           AKA'-Challenge            |
+|                           (Fragment 2: M bit set)   |
+|EAP-Resp/                                            |
+|   AKA'-Challenge ->                                 |
+|                           <- EAP-Req/               |
+|                                 AKA'-Challenge      |
+|                                   (Fragment 3)      |
+|EAP-Resp/                                            |
+|   AKA'-Challenge                                    |
+|   (Fragment 1:                                      |
+|    L, M bits set) ->                                |
+|                                 <- EAP-Req/         |
+|                                   AKA'-Challenge    |
+|EAP-Resp/                                            |  
+|   AKA'-Challenge                                    |
+|   (Fragment 2) ->                                   |
+|                                   <- EAP-Req/       |
+|                                      AKA'-Challenge |
+|EAP-Resp/                                            |
+|   AKA'-Challenge ->                                 |
+|                                   <- EAP-Success    |
+
 # Protocol Construction
 
-This section defines the construction for PQC KEM in EAP-AKA' FS. 
+The above section outlines how the fragmentation works. This section defines the construction for PQC KEM in EAP-AKA' FS and the other params that are sent via EAP Req/Resp AKA'-Challenge.
  
 ## Protocol Call Flow
 
@@ -196,7 +264,7 @@ This section defines the construction for PQC KEM in EAP-AKA' FS.
       |      | if the peer does not support this extension.           |
       |      +-------+----------------------------+----------------+--+
       |              |                            |                |
-      |              |     EAP-Req/AKA'-Challenge |                |
+      |              | EAP-Req/AKA'-Challenge,    |                |
       |              |  AT_RAND, AT_AUTN, AT_KDF, |                |
       |              |   AT_KDF_FS, AT_KDF_INPUT, |                |
       |              |      AT_PUB_KEM, AT_MAC    |                |
@@ -224,7 +292,7 @@ This section defines the construction for PQC KEM in EAP-AKA' FS.
     | EAP-AKA' key values and  constructs a full response.   |     |
     +--+--------------+----------------------------+---------+     |
       |              |                            |                |
-      |              | EAP-Resp/AKA'-Challenge    |                |
+      |              |EAP-Resp/AKA'-Challenge     |                |
       |              | AT_RES, AT_KEM_CT,         |                |
       |              | AT_MAC                     |                |
       |              +--------------------------->|                |
@@ -410,4 +478,4 @@ ML-KEM is believed to be IND-CCA2 secure based on multiple analyses. The ML-KEM 
 
 # Acknowledgements
 
-This draft leverages text from {{?I-D.draft-ietf-emu-aka-pfs-11}}.
+This draft leverages text from {{RFC9678}}.
