@@ -46,6 +46,7 @@ normative:
   RFC9678:
   RFC3748:
   RFC5216:
+  RFC2716:
 
 informative:
 
@@ -108,7 +109,7 @@ This document makes use of the terms defined in {{?I-D.ietf-pquip-pqt-hybrid-ter
 
 For the purposes of this document, it is helpful to be able to divide cryptographic algorithms into two classes:
 
-"Asymmetric Traditional Algorithm":  An asymmetric cryptographic algorithm based on integer factorisation, finite field discrete logarithms or elliptic curve discrete logarithms, elliptic curve discrete logarithms, or related mathematical problems. 
+"Asymmetric Traditional Algorithm":  An asymmetric cryptographic algorithm based on integer factorisation, finite field discrete logarithms or elliptic curve discrete logarithms, or related mathematical problems. 
 
 "Post-Quantum Algorithm":  An asymmetric cryptographic algorithm that is believed to be secure against attacks using quantum computers as well as classical computers. Post-quantum algorithms can also be called quantum-resistant or quantum-safe algorithms. Examples of Post-Quantum Algorithm include ML-KEM.
 
@@ -151,75 +152,233 @@ We suggest the following changes and enhancements:
 
 - The AT_KDF_FS attribute is updated to indicate the PQC KEM for generating the Master Key MK_PQ_SHARED_SECRET.
 
-- Multiple AT_KDF_FS attributes is included in the EAP-Request to handle the EAP peer not supporting PQC KEM.
+- Multiple AT_KDF_FS attributes are included in the EAP-Request to handle the EAP peer not supporting PQC KEM.
 
 - The PQC KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
 
-- According to {{RFC3748}}, lower layers must provide an EAP MTU of 1020 bytes or greater, so any extensions to EAP-AKA SHOULD NOT exceed the EAP MTU of 1020 bytes. As outlined in {{RFC5216}}, both EAP-Request/AKA'-Challenge and EAP-Response/AKA'-Challenge message pairs are broken down into multiple rounds. When the values within these messages exceed the MTU_SIZE, they are divided into fragmented messages of varying lengths and content. These fragments are then transmitted using distinct AKA'-Challenge messages for both requests and responses. Both EAP-Response and EAP-Request messages are subject to fragmentation. The following section will elaborate on the design principles behind message fragmentation, the management of packet loss, and the procedures for splitting and reassembling these packets.
+- EAP-AKA and EAP-AKA′ FS do not define a native attribute-level   fragmentation mechanism. As PQC public keys and ciphertexts may  exceed the EAP MTU, this specification defines an explicit   attribute-level fragmentation mechanism (AT_FRAGMENT) to support transport of large attribute values.
 
-# Message Fragmentation, Splitting/Assembly and Handling packet loss
+# Message Fragmentation and Reassembly
 
-The "More Fragments" (M) flag in the EAP header is used to indicate that a message is fragmented. The server/peer splits the large message into smaller fragments, each of which is sent as an individual EAP packet. The peer/server reassembles the fragments into the original message once all fragments are received. 
+EAP-AKA and EAP-AKA' FS do not natively define fragmentation.  This specification therefore defines
+attribute-level fragmentation for attributes whose total length may exceed the EAP MTU.
 
-Fragment Acknowledgment: After receiving an EAP-Request/EAP-Response packet with the M flag set, the peer/server must respond with an EAP-Response/EAP-Request packet containing no data. This serves as an acknowledgment for the fragment. The EAP server/client waits for this acknowledgment before sending the next fragment.
+This specification defines an attribute-level fragmentation mechanism similar to the lock-step acknowledgment model used by EAP-TLS {{RFC2716}}. Fragmentation applies to the entire attribute, including the attribute header and value.
 
-Final Fragment: The last fragment is sent without the M flag, signalling the end of the fragmented message. The peer processes the reassembled message only after all fragments are received.
+Only one fragmented attribute exchange (i.e., one fragmented attribute transmission in progress in either direction) MUST be active at any time.
 
-The message is split into [1:MTU_SIZE] [2*MTU_SIZE:3*MTU_SIZE]...[N*MTU_SIZE:KEY_SIZE], if there are N fragments. For re-assembly the peer concatenates the messages in the order they were received to reconstruct. Let MTU_SIZE be L. Each fragment of an EAP message is assigned a unique sequence number (USN). This number indicates the fragment's position within the complete EAP message. In addition to USN, an EAP identifier is used to associate all fragments belonging to the same original EAP message. Each fragment is then tagged with the same EAP identifier and an incremental sequence number (USN). The peer/server collects all fragments identified by the same EAP identifier. It then uses the sequence numbers to reassemble the fragments in their original order, reconstructing the complete EAP message. If any fragments are missing or arrive out of order, the receiver can detect this and potentially request retransmission or discard the incomplete message.
+## Fragmentation Attribute {#fragment}
+
+When an attribute is fragmented, each fragment carries a Fragmentation attribute. The Fragment Data field carries a contiguous portion of the original attribute, treated as an opaque sequence of octets. The first fragment
+MUST begin with the attribute Type and Length fields. Subsequent fragments carry the next contiguous octets of the attribute.
+
+The receiver MUST reconstruct the original attribute by concatenating the Fragment Data fields, in the order received, excluding any per-fragment alignment padding. The reassembled attribute MUST be bitwise identical to the original, unfragmented attribute and MUST NOT be processed until reassembly has completed.
+
+The Fragmentation attribute has the following format:
+
+0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |  AT_FRAGMENT  |    Reserved   |           Length              |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |     Flags     |    Reserved   |     Total Attribute Length    |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   |                    Fragment Data (variable)                   |
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 
 
-Packet loss can disrupt the EAP-AKA authentication process, especially when multiple round-trips are required. If even one fragment is lost during transit, the entire original message cannot be reassembled by the server/client. The server never receives a complete Access-Request, and the authentication fails. To mitigate packet loss:
+Length:
 
-* Retransmission Mechanism: EAP includes built-in retransmission capabilities. If a response to an EAP-Request is not received within a specified timeout, the authenticator retransmits the request. Retransmissions use the same EAP identifier to distinguish them from new requests.
+A 2-octet unsigned integer indicating the length of this
+AT_FRAGMENT attribute in multiples of 4 octets, including the
+Type, Reserved, Length, Flags, Total Attribute Length, Fragment
+Data, and any alignment padding. The total length of the
+attribute in octets is obtained by multiplying this field by 4.
 
-* Timeout Configuration: Configure appropriate retransmission timeouts based on network conditions.
+Each AT_FRAGMENT attribute MUST have a Length that is a
+multiple of 4 octets.
 
-* Duplicate Detection: The EAP identifier field ensures that duplicate packets are detected and discarded by the peer. If a duplicate request is received, the peer resends its original response without reprocessing the request.
+Flags (1 octet):
 
-* Error Handling: If retransmissions fail after a specified number of attempts, the authentication process is terminated.
+The Flags field contains the following bits:
+
+   0 1 2 3 4 5 6 7
+  +-+-+-+-+-+-+-+-+
+  |S|M|  Reserved |
+  +-+-+-+-+-+-+-+-+
+
+- S (First Fragment)
+
+  Indicates that this is the first fragment of a fragmented attribute.
+  This bit MUST be set on the first fragment and MUST NOT be set on
+  subsequent fragments.
+
+- M (More Fragments)
+  Indicates that additional fragments follow.  
+  This bit MUST be set on all fragments except the last.
+
+- Reserved  
+  MUST be set to zero on transmission and ignored on receipt.
+
+Total Attribute Length (2 octets)
+
+The Total Attribute Length field specifies the total length, in octets,
+of the unfragmented attribute, including its Type, Length, and Value
+fields. It is encoded as an unsigned 16-bit integer in network byte
+order.
+
+This field MUST be present in all fragments belonging to the same
+fragmented attribute. In fragments other than the first, the value of
+Total Attribute Length MUST be identical to that of the first fragment.
+If a mismatch is detected, the receiver MUST treat this as a protocol
+error and abort the authentication exchange.
+
+## Fragmentation Procedure
+
+* When an EAP peer receives an EAP-Request containing an attribute
+  fragment with the M bit set, it MUST respond with an EAP-Response of
+  the same EAP type containing no attributes.  This response serves as
+  a fragment acknowledgment.
+
+* When an EAP server receives an EAP-Response containing an attribute
+  fragment with the M bit set, it MUST respond with an EAP-Request of
+  the same EAP type containing no attributes.  This request serves as a
+  fragment acknowledgment.
+
+* The sender MUST NOT transmit the next fragment until the
+  corresponding acknowledgment has been received.
+
+
+## Use of the EAP Identifier
+
+The EAP Identifier field is used to correlate fragments and
+acknowledgments:
+
+* The Identifier in an EAP-Response MUST match the Identifier of the
+  immediately preceding EAP-Request.
+
+* Fragment acknowledgments MUST echo the Identifier of the fragment
+  being acknowledged.
+
+* Retransmitted fragments MUST reuse the same Identifier value as the
+  original transmission.
+
+* For fragmented exchanges initiated by the EAP server, the Identifier
+  in each EAP-Request carrying a fragment MUST be incremented relative
+  to the previous EAP-Request.
+
+## Reassembly
+
+The receiver MUST reassemble attribute fragments strictly in the order
+received and MUST NOT process the fragmented attribute until all
+fragments have been successfully received and validated.
+
+The final fragment is identified by the M bit being cleared (M = 0). The
+receiver MUST acknowledge each fragment, including the final fragment,
+using the lock-step procedure defined for fragmentation. The sender
+MUST wait for acknowledgment of the final fragment before considering
+the fragmented attribute exchange complete.
+
+During the fragmentation phase (i.e., while the M bit is set in
+AT_FRAGMENT), the EAP peer MUST respond to each
+EAP-Request/AKA'-Challenge fragment with an
+EAP-Response/AKA'-Challenge message containing a zero-length attribute
+payload. These responses serve solely as transport-level acknowledgments
+and MUST NOT trigger any AKA' cryptographic processing.
+
+The EAP peer MUST NOT initiate USIM processing (e.g., passing RAND and AUTN to the USIM) 
+while attribute fragmentation is in progress. USIM processing has to occur only 
+after the final fragment (M = 0) has been received and the complete attribute 
+set has been successfully reassembled and validated. At that point, the peer will
+invoke the AKA' algorithm using the RAND and AUTN values contained in the 
+reassembled message.
+
+If a fragment is lost or corrupted, normal EAP retransmission procedures
+apply. Retransmitted fragments MUST use the same EAP Identifier value
+as the original transmission.
+
+The receiver MUST verify that:
+
+- The first fragment has the S bit set and subsequent fragments do not; and
+- The cumulative length of all received Fragment Data fields equals the
+  Total Attribute Length.
+
+Any inconsistency in fragmentation state (including unexpected S bit
+usage, receipt of a new initial fragment while reassembly is in
+progress, length mismatch, or malformed sequencing) MUST be treated
+as a protocol error, and the authentication exchange MUST be
+aborted. If reassembly cannot be successfully completed after a bounded
+number of retransmissions, the authentication exchange MUST be
+aborted.
+
+Fragmentation does not modify the AT_MAC calculation rules defined in
+{{RFC9048}}. AT_MAC is calculated over the EAP packet exactly as
+transmitted on the wire, including any AT_FRAGMENT attributes.
+
+Processing of data contained in reassembled fragmented attributes MUST
+occur only after successful AT_MAC verification. Fragmentation therefore
+does not alter the integrity protection scope of the EAP packet.
+
+## Applicability
+
+This fragmentation mechanism applies to any attribute within this EAP method whose encoded length exceeds the EAP MTU. (e.g., AT_PUB_KEM, AT_KEM_CT, or AT_IDENTITY carrying a large SUCI). Attributes that fit within a single EAP packet MUST be sent unfragmented.
 
 The following diagram details how the fragmentation works for both request and response:
 
-Peer                                               Server  
-|                                                     | 
-|                                 <- EAP-Req/         |
-|                                      Identity       |
-|EAP-Resp/                                            |
-|   Identity (MyID) ->                                |
-|                                <- EAP-Req/          |
-|                                 AKA'-Challenge      |
-|                                (Other params        |
-|                                   explained in      |
-|                                   next section)     |
-|EAP-Resp/                                            |
-|   AKA'-Challenge ->                                 |
-|                           <- EAP-Req/               |      
-|                           AKA'-Challenge            |
-|                          (Fragment 1: L, M bits set)|
-|EAP-Resp/                                            |
-|   AKA'-Challenge ->                                 |
-|                           <- EAP-Req/               |
-|                           AKA'-Challenge            |
-|                           (Fragment 2: M bit set)   |
-|EAP-Resp/                                            |
-|   AKA'-Challenge ->                                 |
-|                           <- EAP-Req/               |
-|                                 AKA'-Challenge      |
-|                                   (Fragment 3)      |
-|EAP-Resp/                                            |
-|   AKA'-Challenge                                    |
-|   (Fragment 1:                                      |
-|    L, M bits set) ->                                |
-|                                 <- EAP-Req/         |
-|                                   AKA'-Challenge    |
-|EAP-Resp/                                            |  
-|   AKA'-Challenge                                    |
-|   (Fragment 2) ->                                   |
-|                                   <- EAP-Req/       |
-|                                      AKA'-Challenge |
-|EAP-Resp/                                            |
-|   AKA'-Challenge ->                                 |
-|                                   <- EAP-Success    |
+Peer                                               Server
+ |                                                     |
+ |                 <- EAP-Request / Identity (Id=1)    |
+ |                                                     |
+ | EAP-Response / Identity (Id=1) ->                   |
+ |                                                     |
+ |             <- EAP-Request / AKA'-Challenge (Id=2)  |
+ |                (unfragmented attributes)            |
+ |                                                     |
+ | EAP-Response / AKA'-Challenge (Id=2) ->             |
+ |                                                     |
+ |================ Server-Initiated Fragmentation ===============|
+ |                                                     |
+ |             <- EAP-Request / AKA'-Challenge (Id=3)  |
+ |                (Fragment 1: S=1, M=1)               |
+ |                                                     |
+ | EAP-Response / AKA'-Challenge (Id=3) ->             |
+ |   (ACK, no attributes)                              |
+ |                                                     |
+ |             <- EAP-Request / AKA'-Challenge (Id=4)  |
+ |                (Fragment 2: M=1)                    |
+ |                                                     |
+ | EAP-Response / AKA'-Challenge (Id=4) ->             |
+ |   (ACK, no attributes)                              |
+ |                                                     |
+ |             <- EAP-Request / AKA'-Challenge (Id=5)  |
+ |                (Fragment 3: M=0, last fragment)     |
+ |                                                     |
+ | EAP-Response / AKA'-Challenge (Id=5) ->             |
+ |   (ACK, no attributes — final fragment)             |
+ |                                                     |
+ |================ Peer-Initiated Fragmentation =================|
+ |                                                     |
+ |                 <- EAP-Request / Identity (Id=6)    |
+ |                                                     |
+ | EAP-Response / AKA'-Challenge (Id=6) ->             |
+ |   (Fragment 1: S=1, M=1)                            |
+ |                                                     |
+ |             <- EAP-Request / AKA'-Challenge (Id=7)  |
+ |                (ACK, no attributes)                 |
+ |                                                     |
+ | EAP-Response / AKA'-Challenge (Id=7) ->             |
+ |   (Fragment 2: M=0, last fragment)                  |
+ |                                                     |
+ |             <- EAP-Request / AKA'-Challenge (Id=8)  |
+ |                (ACK, no attributes — final fragment)|
+ |                                                     |
+ |             <- EAP-Success (Id=9)                   |
+ |                                                     |
+
+
+The term “ACK” in the above figure is used for illustrative purpose to describe an EAP-Request or EAP-Response of the same EAP method type that contains no attributes and is sent solely to acknowledge receipt of a fragment.
 
 # Protocol Construction
 
@@ -348,7 +507,7 @@ The generated ss from kemDecaps is the shared secret key derived from kemEncaps.
 
 ~~~
    MK = PRF'(IK'|CK',"EAP-AKA'"|Identity)
-   ct, ss = kemEncaps(pKR)
+   ct, ss = kemEncaps(pk)
    MK_PQ_SHARED_SECRET = PRF'(IK'|CK'|ss,"EAP-AKA' FS"| Identity | ct)  
    K_encr = MK[0..127]
    K_aut = MK[128..383]
@@ -357,7 +516,7 @@ The generated ss from kemDecaps is the shared secret key derived from kemEncaps.
    EMSK = MK_PQ_SHARED_SECRET [768..1279]
 ~~~
 
-where, pkR is PQC KEM public key from the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. The pseudo-random function (PRF') binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. 
+where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. The pseudo-random function (PRF') binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. 
 
 The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key is an input to the computation of the shared secret (ss) (line 2 of ML-KEM.Encaps algorithm in [FIPS203]).  These computational binding properties for KEMs are defined in [CDM].
 
@@ -371,7 +530,7 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
       0                   1                   2                   3
       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     | AT_PUB_KEM    |   Reserved    |         Length (in bytes)     |
+     | AT_PUB_KEM    |   Reserved    |         Length                |
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      |                                                               |
      |                       Value (variable)                        |
@@ -390,8 +549,9 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
 
    Length:
    
-   A 2-byte unsigned integer indicating the total length of the attribute in bytes, including the Type, 
-   Reserved, Length, and Value fields, as well as any padding. The length is expressed in multiples of 4 bytes.
+   A 2-byte unsigned integer indicating the length of this attribute in multiples of 4 octets, including the Type, Reserved, Length, and Value fields, as well as any padding.
+
+   The total length of the attribute in octets is obtained by multiplying this field by 4.
 
    This differs from the attribute format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte.The modification is necessary because PQC KEM public keys, such as those defined in ML-KEM-1024, will be 1568 bytes, which would exceed the 1024-byte limit imposed by the original EAP-AKA format.
 
@@ -399,7 +559,7 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
 
       *  EAP-Request: It contains the public key, which is the PQC KEM public key from the EAP server.
 
-   Because the length of the attribute must be a multiple of 4 bytes,the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
+   Because the length of the attribute must be a multiple of 4 bytes, the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
 
 ## AT_KEM_CT {#pqct}
 
@@ -409,7 +569,7 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
       0                   1                   2                   3
       0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-     | AT_KEM_CT     |   Reserved    |         Length (in bytes)     |
+     | AT_KEM_CT     |   Reserved    |         Length                |
      +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
      |                                                               |
      |                   Value (variable)                            |
@@ -428,7 +588,9 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
 
    Length:
 
-   A 2-byte unsigned integer indicating the total length of the attribute in bytes, including the Type, Reserved, Length, and Value fields, along with any padding. The length is expressed in multiples of 4 bytes.
+   A 2-byte unsigned integer indicating the length of this attribute in multiples of 4 octets, including the Type, Reserved, Length, and Value fields, as well as any padding.
+
+   The total length of the attribute in octets is obtained by multiplying this field by 4.
    
    This differs from the format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte. The change is necessary because ciphertexts produced by PQC KEM algorithms,such as 1568 bytes in ML-KEM-1024 will exceed the 1024 byte limit imposed by the original EAP-AKA attribute format.
 
@@ -438,6 +600,15 @@ The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key 
 
 
    Because the length of the attribute must be a multiple of 4 bytes, the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
+
+# Capability Negotiation
+
+Support for PQC KEM is negotiated using the AT_KDF_FS attribute.
+
+AT_PUB_KEM and AT_KEM_CT use an extended attribute header format
+that is incompatible with legacy EAP-AKA and EAP-AKA' implementations.
+Therefore, these attributes MUST NOT be sent unless a mutually
+supported PQC KEM has been successfully negotiated via AT_KDF_FS.
 
 # ML-KEM
 
@@ -449,15 +620,18 @@ The security of the PQ-KEM algorithm depends on a high-quality pseudo-random num
 
 In general, good cryptographic practice dictates that a given PQ-KEM key pair should be used in only one EAP session. This practice mitigates the risk that compromise of one EAP session will not compromise the security of another EAP session and is essential for maintaining forward security.
 
+Implementations MUST enforce a locally configured maximum Total Attribute Length for fragmented attributes. If the Total Attribute Length exceeds this limit, the attribute MUST be rejected and the authentication exchange aborted. This limit has to be chosen to mitigate DoS attack with support for large PQC key material.
+
 ## Selecting ML-KEM Variants
 
 ML-KEM is believed to be IND-CCA2 secure based on multiple analyses. The ML-KEM variant and its underlying components should be selected consistently with the desired security level. For further clarity on the sizes and security levels of ML-KEM variants, please refer to the tables in Sections 12 and 13 of {{?I-D.ietf-pquip-pqc-engineers}}.
 
 # IANA Considerations
 
-   Two new values (TBA1, TBA2) in the skippable range need to be assigned by IANA 
-   for AT_PUB_KEM ({{pqkem}}) and AT_KEM_CT ({{pqct}}) in the "Attribute Types" registry 
-   under the "EAP-AKA and EAP-SIM Parameters" group.
+   Three new Attribute Type values (TBA1, TBA2, and TBA3) from the
+   skippable range are requested from IANA for AT_PUB_KEM ({{pqkem}}),
+   AT_KEM_CT ({{pqct}}), and AT_FRAGMENT ({{fragment}}) in the
+   "Attribute Types" registry under the "EAP-SIM/AKA/AKA'" group.
  
    IANA is requested to update the registry "EAP-AKA' AT_KDF_FS
    Key Derivation Function Values" with the PQC KEM algorithm entries:
