@@ -328,6 +328,7 @@ This fragmentation mechanism applies to any attribute within this EAP method who
 
 The following diagram details how the fragmentation works for both request and response:
 
+~~~ artwork
 Peer                                               Server
  |                                                     |
  |                 <- EAP-Request / Identity (Id=1)    |
@@ -377,7 +378,7 @@ Peer                                               Server
  |                                                     |
  |             <- EAP-Success (Id=9)                   |
  |                                                     |
-
+~~~
 
 The term “ACK” in the above figure is used for illustrative purpose to describe an EAP-Request or EAP-Response of the same EAP method type that contains no attributes and is sent solely to acknowledge receipt of a fragment.
 
