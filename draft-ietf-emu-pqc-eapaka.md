@@ -43,9 +43,7 @@ author:
 
 normative:
   RFC9048:
-  RFC9678:
-  RFC3748:
-  RFC5216:
+  RFC9678:  
   RFC2716:
 
 informative:
@@ -176,7 +174,8 @@ The receiver MUST reconstruct the original attribute by concatenating the Fragme
 
 The Fragmentation attribute has the following format:
 
-0                   1                   2                   3
+~~~ artwork
+    0                   1                   2                   3
     0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
    |  AT_FRAGMENT  |    Reserved   |           Length              |
@@ -187,8 +186,7 @@ The Fragmentation attribute has the following format:
    |                    Fragment Data (variable)                   |
    |                                                               |
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-
-
+~~~
 Length:
 
 A 2-octet unsigned integer indicating the length of this
@@ -204,10 +202,13 @@ Flags (1 octet):
 
 The Flags field contains the following bits:
 
+~~~ artwork
    0 1 2 3 4 5 6 7
   +-+-+-+-+-+-+-+-+
   |S|M|  Reserved |
   +-+-+-+-+-+-+-+-+
+~~~
+
 
 - S (First Fragment)
 
