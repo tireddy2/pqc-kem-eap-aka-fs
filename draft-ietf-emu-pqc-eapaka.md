@@ -74,7 +74,8 @@ informative:
   
 --- abstract
 
-Forward Secrecy for the Extensible Authentication Protocol Method for Authentication and Key Agreement (EAP-AKA' FS) is specified in {{RFC9678}}, providing updates to {{RFC9048}} with an optional extension that offers ephemeral key exchange using the traditional Ephemeral Elliptic Curve Diffie-Hellman (ECDHE) key agreement algorithm for achieving perfect forward secrecy (PFS). However, it is susceptible to future threats from Cryptographically Relevant Quantum Computers, which could potentially compromise a traditional ephemeral public key. If the adversary has also obtained knowledge of the long-term key and ephemeral public key, it could compromise session keys generated as part of the authentication run in EAP-AKA'.
+Forward Secrecy for the Extensible Authentication Protocol Method for Authentication and Key Agreement (EAP-AKA' FS) is specified in {{RFC9678}}. It updates {{RFC9048}} with an optional extension that
+provides ephemeral key exchange using the traditional Ephemeral Elliptic Curve Diffie-Hellman (ECDHE) key agreement algorithm. This extension enables perfect forward secrecy (PFS). However, it is susceptible to future threats from Cryptographically Relevant Quantum Computers, which could potentially compromise a traditional ephemeral public key. If the adversary has also obtained knowledge of the long-term key and ephemeral public key, it could compromise session keys generated as part of the authentication run in EAP-AKA'.
 
 This draft aims to enhance the security of EAP-AKA' FS protocol by making it quantum-safe using Post-Quantum Key Encapsulation Mechanisms (PQ-KEMs).
 
@@ -82,7 +83,7 @@ This draft aims to enhance the security of EAP-AKA' FS protocol by making it qua
 
 # Introduction
 
-Forward Secrecy for the Extensible Authentication Protocol Method for Authentication and Key Agreement (EAP-AKA' FS) defined in {{RFC9678}} updates the improved Extensible Authentication Protocol Method for 3GPP Mobile Network Authentication and Key Agreement (EAP-AKA') specified in {{RFC9048}}, with an optional extension providing ephemeral key exchange. This prevents an attacker who has gained access to the long term key from obtaining session keys established in the past, assuming these have been properly deleted. EAP-AKA' FS mitigates passive attacks (e.g., large scale pervasive monitoring) against future sessions.
+EAP-AKA' FS defined in {{RFC 9678}} prevents an attacker who has gained access to the long term key from obtaining session keys established in the past, assuming these have been properly deleted. EAP-AKA' FS mitigates passive attacks (e.g., large scale pervasive monitoring) against future sessions.
 
 Nevertheless, EAP-AKA' FS uses traditional algorithms public-key algorithms (e.g., ECDH) which will be broken by a Cryptographically Relevant Quantum Computer (CRQC) using Shor's algorithm. The presence of a CRQC would render state-of-the-art, traditional public-key algorithms deployed today obsolete and insecure, since the assumptions about the intractability of the mathematical problems for these algorithms that offer confident levels of security today no longer apply in the presence of a CRQC. A CRQC could recover the SHARED_SECRET from the ECDHE public keys (Section 6.3 of {{RFC9678}}). If the adversary has also obtained knowledge of the long-term key, it could then compute CK', IK', and the SHARED_SECRET, and any derived output keys. This means that the CRQC would disable the forward security capability provided by {{RFC9678}}.
 
@@ -167,10 +168,10 @@ Only one fragmented attribute exchange (i.e., one fragmented attribute transmiss
 
 ## Fragmentation Attribute {#fragment}
 
-When an attribute is fragmented, each fragment carries a Fragmentation attribute. The Fragment Data field carries a contiguous portion of the original attribute, treated as an opaque sequence of octets. The first fragment
-MUST begin with the attribute Type and Length fields. Subsequent fragments carry the next contiguous octets of the attribute.
+When an attribute is fragmented, the sender divides the unfragmented attribute into one or more fragments. Each fragment contains a consecutive, non-overlapping sequence of octets from
+the original attribute. The first fragment contains the first octets of the attribute and MUST begin with the attribute Type and Length fields. Each subsequent fragment contains the next sequence of octets from the original attribute.
 
-The receiver MUST reconstruct the original attribute by concatenating the Fragment Data fields, in the order received, excluding any per-fragment alignment padding. The reassembled attribute MUST be bitwise identical to the original, unfragmented attribute and MUST NOT be processed until reassembly has completed.
+The receiver MUST reconstruct the original attribute by concatenating the Fragment Data fields from all fragments in transmission order, excluding any per-fragment alignment padding. The reassembled attribute MUST be bitwise identical to the original unfragmented attribute and MUST NOT be processed until reassembly has completed.
 
 The Fragmentation attribute has the following format:
 
@@ -233,8 +234,24 @@ order.
 This field MUST be present in all fragments belonging to the same
 fragmented attribute. In fragments other than the first, the value of
 Total Attribute Length MUST be identical to that of the first fragment.
-If a mismatch is detected, the receiver MUST treat this as a protocol
-error and abort the authentication exchange.
+If the Total Attribute Length value is invalid, inconsistent
+across fragments, exceeds a locally configured limit, or is
+otherwise inconsistent with the received fragment data, the
+receiver MUST treat this as a protocol error and abort the
+authentication exchange.
+
+Note that Length and Total Attribute Length use
+different units. Length is encoded in units of four
+octets following EAP-AKA conventions, whereas Total
+Attribute Length is encoded directly in octets.
+
+Total Attribute Length MUST be at least large enough
+to contain the minimal header of the fragmented
+attribute.
+
+Total Attribute Length MUST NOT exceed the locally
+configured maximum fragment reassembly size.
+
 
 ## Fragmentation Procedure
 
