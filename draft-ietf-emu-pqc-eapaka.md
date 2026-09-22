@@ -83,7 +83,7 @@ This draft aims to enhance the security of EAP-AKA' FS protocol by making it qua
 
 # Introduction
 
-EAP-AKA' FS defined in {{RFC9678}} prevents an attacker who has gained access to the long term key from obtaining session keys established in the past, assuming these have been properly deleted. EAP-AKA' FS mitigates passive attacks (e.g., large scale pervasive monitoring) against future sessions.
+The Improved Extensible Authentication Protocol Method for 3GPP Mobile Network Authentication and Key Agreement (EAP-AKA') is specified in {{RFC9048}}. Forward Secrecy for EAP-AKA' (EAP-AKA' FS), defined in {{RFC9678}}, adds an optional ephemeral key exchange. This prevents an attacker who has gained access to the long-term key from obtaining session keys established in the past, assuming these have been properly deleted. EAP-AKA' FS mitigates passive attacks (e.g., large scale pervasive monitoring) against future sessions.
 
 Nevertheless, EAP-AKA' FS uses traditional algorithms public-key algorithms (e.g., ECDH) which will be broken by a Cryptographically Relevant Quantum Computer (CRQC) using Shor's algorithm. The presence of a CRQC would render state-of-the-art, traditional public-key algorithms deployed today obsolete and insecure, since the assumptions about the intractability of the mathematical problems for these algorithms that offer confident levels of security today no longer apply in the presence of a CRQC. A CRQC could recover the SHARED_SECRET from the ECDHE public keys (Section 6.3 of {{RFC9678}}). If the adversary has also obtained knowledge of the long-term key, it could then compute CK', IK', and the SHARED_SECRET, and any derived output keys. This means that the CRQC would disable the forward security capability provided by {{RFC9678}}.
 
@@ -171,7 +171,7 @@ Only one fragmented attribute exchange (i.e., one fragmented attribute transmiss
 When an attribute is fragmented, the sender divides the unfragmented attribute into two or more fragments. Each fragment contains a consecutive, non-overlapping sequence of octets from
 the original attribute. The first fragment contains the first octets of the attribute and MUST begin with the attribute Type and Length fields. Each subsequent fragment contains the next sequence of octets from the original attribute.
 
-The receiver MUST reconstruct the original attribute by concatenating the Fragment Data fields from all fragments in transmission order, excluding any per-fragment alignment padding. The reassembled attribute MUST be bitwise identical to the original unfragmented attribute and MUST NOT be processed until reassembly has completed.
+The receiver reconstructs the original attribute by concatenating the Fragment Data fields from all fragments in the order received, excluding any per-fragment alignment padding. The reassembled attribute MUST NOT be processed until reassembly has completed and its length equals Total Attribute Length.
 
 The Fragmentation attribute has the following format:
 
@@ -227,23 +227,22 @@ The Flags field contains the following bits:
 Total Attribute Length (2 octets)
 
 The Total Attribute Length field specifies the total length, in octets,
-of the unfragmented attribute, including its Type, Length, and Value
-fields. It is encoded as an unsigned 16-bit integer in network byte
-order.
+of the unfragmented attribute, including its Type, Reserved, Length,
+Value fields, and any padding. It is encoded as an unsigned 16-bit
+integer in network byte order.
 
 This field MUST be present in all fragments belonging to the same
-fragmented attribute. In fragments other than the first, the value of
-Total Attribute Length MUST be identical to that of the first fragment.
-If the Total Attribute Length value is invalid, inconsistent
-across fragments, exceeds a locally configured limit, or is
-otherwise inconsistent with the received fragment data, the
-receiver MUST treat this as a protocol error and abort the
-authentication exchange.
+fragmented attribute. The value of Total Attribute Length MUST be
+identical in all fragments. If the Total Attribute Length value differs
+across fragments, does not correspond to the length indicated by the
+Length field of the attribute being fragmented (e.g., AT_PUB_KEM), or
+exceeds a locally configured limit, the receiver MUST treat this as a
+protocol error and abort the authentication exchange.
 
-Note that Length and Total Attribute Length use
-different units. Length is encoded in units of four
-octets following EAP-AKA conventions, whereas Total
-Attribute Length is encoded directly in octets.
+Note that Length and Total Attribute Length use different units.
+Length is encoded in units of four octets following EAP-AKA
+conventions, whereas Total Attribute Length is encoded directly in
+octets.
 
 Total Attribute Length MUST be at least large enough
 to contain the minimal header of the fragmented
@@ -257,35 +256,36 @@ configured maximum fragment reassembly size.
 
 * When an EAP peer receives an EAP-Request containing an attribute
   fragment with the M bit set, it MUST respond with an EAP-Response of
-  the same EAP type containing no attributes.  This response serves as
-  a fragment acknowledgment.
-
+  the same EAP type. This EAP-Response MUST NOT contain any attributes
+  and serves as a fragment acknowledgment.
+ 
 * When an EAP server receives an EAP-Response containing an attribute
   fragment with the M bit set, it MUST respond with an EAP-Request of
-  the same EAP type containing no attributes.  This request serves as a
-  fragment acknowledgment.
+  the same EAP type. This EAP-Request MUST NOT contain any attributes
+  and serves as a fragment acknowledgment.
 
 * The sender MUST NOT transmit the next fragment until the
   corresponding acknowledgment has been received.
 
 
-## Use of the EAP Identifier
+## Correlating Fragments and Acknowledgments
 
 The EAP Identifier field is used to correlate fragments and
-acknowledgments:
-
+acknowledgments, as specified in Section 4.1 of {{!RFC3748}}:
+ 
 * The Identifier in an EAP-Response MUST match the Identifier of the
-  immediately preceding EAP-Request.
-
-* Fragment acknowledgments MUST echo the Identifier of the fragment
-  being acknowledged.
-
+  EAP-Request it responds to (Section 4.1 of {{!RFC3748}}).
+ 
+* Fragment acknowledgments sent by the EAP peer MUST echo the
+  Identifier of the fragment being acknowledged (Section 4.1 of
+  {{!RFC3748}}).
+ 
 * Retransmitted fragments MUST reuse the same Identifier value as the
-  original transmission.
-
-* For fragmented exchanges initiated by the EAP server, the Identifier
-  in each EAP-Request carrying a fragment MUST be incremented relative
-  to the previous EAP-Request.
+  original transmission (Sections 4.1 and 4.3 of {{!RFC3748}}).
+ 
+* Each new EAP-Request carrying a fragment or a fragment
+  acknowledgment MUST use a new Identifier value (Section 4.1 of
+  {{!RFC3748}}).
 
 ## Reassembly
 
