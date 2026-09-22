@@ -168,7 +168,7 @@ Only one fragmented attribute exchange (i.e., one fragmented attribute transmiss
 
 ## Fragmentation Attribute {#fragment}
 
-When an attribute is fragmented, the sender divides the unfragmented attribute into one or more fragments. Each fragment contains a consecutive, non-overlapping sequence of octets from
+When an attribute is fragmented, the sender divides the unfragmented attribute into two or more fragments. Each fragment contains a consecutive, non-overlapping sequence of octets from
 the original attribute. The first fragment contains the first octets of the attribute and MUST begin with the attribute Type and Length fields. Each subsequent fragment contains the next sequence of octets from the original attribute.
 
 The receiver MUST reconstruct the original attribute by concatenating the Fragment Data fields from all fragments in transmission order, excluding any per-fragment alignment padding. The reassembled attribute MUST be bitwise identical to the original unfragmented attribute and MUST NOT be processed until reassembly has completed.
