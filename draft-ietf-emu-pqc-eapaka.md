@@ -45,6 +45,7 @@ normative:
   RFC9048:
   RFC9678:  
   RFC2716:
+  RFC9958:
 
 informative:
 
@@ -88,9 +89,9 @@ Nevertheless, EAP-AKA' FS uses traditional public-key algorithms (e.g., ECDH) wh
 
 Researchers have developed Post-Quantum Key Encapsulation Mechanisms (PQ-KEMs) to provide secure key establishment resistant against an adversary with access to a quantum computer.
 
-At the time of writing, NIST has standardized three PQC algorithms, with more expected to be standardized in the future ({{NISTFINAL}}). As these algorithms are secure against both quantum and classical computers, this document proposes a PQ-KEM for achieving perfect forward secrecy in EAP-AKA'.
+NIST has standardized PQC algorithms, with more expected to be standardized in the future ({{NISTFINAL}}). As these algorithms are secure against both quantum and classical computers, this document proposes a PQ-KEM for achieving perfect forward secrecy in EAP-AKA'.
 
-Although the protocol construction can be used with other post-quantum Key Encapsulation Mechanisms (PQ-KEMs), this specification is designed for PQ-KEMs whose public keys and ciphertexts can be represented within the size limits of the attribute encoding and fragmentation mechanisms defined in this document. This document specifies its use with ML-KEM. ML-KEM provides a one-pass (store-and-forward) cryptographic method for an originator to securely transmit keying material to a recipient using the recipient’s ML-KEM public key. Three parameter sets for ML-KEM are defined in {{FIPS203}}, namely ML-KEM-512, ML-KEM-768, and ML-KEM-1024, listed in order of increasing security strength and decreasing performance.
+The protocol construction can be used with other post-quantum Key Encapsulation Mechanisms (PQ-KEMs). However, the public key and ciphertext must each fit within 65,535 octets, which is the maximum attribute size supported by the fragmentation mechanism. This excludes PQ-KEMs such as Classic McEliece. This document specifies its use with ML-KEM. ML-KEM provides a one-pass (store-and-forward) cryptographic method for an originator to securely transmit keying material to a recipient using the recipient’s ML-KEM public key. Three parameter sets for ML-KEM are defined in {{FIPS203}}, namely ML-KEM-512, ML-KEM-768, and ML-KEM-1024, listed in order of increasing security strength and decreasing performance.
 
 # Conventions and Definitions
 
@@ -110,7 +111,7 @@ For the purposes of this document, it is helpful to be able to divide cryptograp
 
 "Post-Quantum Algorithm":  An asymmetric cryptographic algorithm that is believed to be secure against attacks using quantum computers as well as classical computers. Post-quantum algorithms can also be called quantum-resistant or quantum-safe algorithms. Examples of Post-Quantum Algorithm include ML-KEM.
 
-# Background on EAP-AKA' with perfect forward secrecy
+# Background on EAP-AKA' with forward secrecy
 
 In EAP-AKA', The authentication vector (AV) contains a random part RAND, an authenticator part AUTN used for authenticating the network to the USIM, an expected result part XRES, a 128-bit session key for integrity check IK, and a 128-bit session key for encryption CK.
 
@@ -130,14 +131,13 @@ For the purposes of this document, we consider a Key Encapsulation Mechanism (KE
 
 where pk is public key, sk is secret key, ct is the ciphertext representing an encapsulated key, and ss is shared secret.
 
-KEMs are typically used in cases where two parties, hereby referred to as the "encapsulater" and the "decapsulater", wish to establish a shared secret via public key cryptography, where the decapsulater has an asymmetric key pair and has previously shared the public key with the encapsulater.
+KEMs are typically used in cases where two parties, hereby referred to as the "encapsulator" and the "decapsulator", wish to establish a shared secret via public key cryptography, where the decapsulator has an asymmetric key pair and has previously shared the public key with the encapsulator.
 
 # Design Rationales {#rational}
 
-It is essential to note that in the PQ-KEM, one needs to apply Fujisaki-Okamoto {{FO}} transform or its variant {{HHK}} on the PQC KEM part to ensure that the overall scheme is IND-CCA2 secure, as mentioned in {{?I-D.ietf-tls-hybrid-design}}. The FO transform is performed using the KDF such that the PQC KEM shared secret achieved is IND-CCA2 secure. 
+The PQ-KEM used in this document MUST be IND-CCA2 secure (As discussed in Section 9.2.1 in {{RFC9958}}).
 
-Note that during the transition from traditional to post-quantum algorithms, there may be a desire or a requirement for protocols that incorporate both types of algorithms until the post-quantum algorithms are fully trusted. HPKE is an KEM that can be extended to support hybrid post-quantum KEMs and the specifications for the use of HPKE with EAP-AKA' is described in 
-{{?I-D.draft-ar-emu-pqc-eapaka}}. 
+Note that during the transition from traditional to post-quantum algorithms, there may be a desire or a requirement for protocols that incorporate both types of algorithms until the post-quantum algorithms are fully trusted. HPKE can be extended to support hybrid post-quantum KEMs and the specifications for the use of HPKE with EAP-AKA' are described in {{?I-D.draft-ar-emu-pqc-eapaka}}.
 
 # PQC KEM Enhancements by Design
 
@@ -314,8 +314,7 @@ number of retransmissions, the authentication exchange MUST be
 aborted.
 
 Fragmentation does not modify the AT_MAC calculation rules defined in
-{{RFC9048}}. AT_MAC is calculated over the EAP packets exactly as
-transmitted on the wire, including any AT_FRAGMENT attributes.
+{{RFC9048}}. For a fragmented message, AT_MAC is carried only in the packet containing the final fragment and is calculated over all packets carrying fragments of that message, concatenated in transmission order, including any AT_FRAGMENT attributes.
 
 Processing of data contained in reassembled fragmented attributes MUST
 occur only after successful AT_MAC verification. Fragmentation therefore
@@ -517,9 +516,8 @@ The generated ss from kemDecaps is the shared secret key derived from kemEncaps.
    EMSK = MK_PQ_SHARED_SECRET [768..1279]
 ~~~
 
-where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only.
+where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. Length(X) is the length of X in octets, encoded as a 2-octet unsigned integer in network byte order.
 
-The pseudo-random function (PRF') binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key is an input to the computation of the shared secret (ss) (line 2 of ML-KEM.Encaps algorithm in [FIPS203]).  These computational binding properties for KEMs are defined in [CDM].
 
 # Extensions to EAP-AKA' FS
 
@@ -613,7 +611,7 @@ supported PQC KEM has been successfully negotiated via AT_KDF_FS.
 
 # ML-KEM
 
-ML-KEM offers several parameter sets with varying levels of security and performance trade-offs. This document specifies the use of the ML-KEM algorithm at three security levels: ML-KEM-512, ML-KEM-768, and ML-KEM-1024. The main security property for KEMs standardized in the NIST Post-Quantum Cryptography Standardization Project is indistinguishability under adaptive chosen ciphertext attacks (IND-CCA2) (see Section 10.2 of {{?I-D.ietf-pquip-pqc-engineers}}). The public/private key sizes, ciphertext key size, and PQ security levels of ML-KEM are detailed in Section 12 of {{?I-D.ietf-pquip-pqc-engineers}}.
+ML-KEM offers several parameter sets with varying levels of security and performance trade-offs. This document specifies the use of the ML-KEM algorithm at three security levels: ML-KEM-512, ML-KEM-768, and ML-KEM-1024. The main security property for KEMs standardized in the NIST Post-Quantum Cryptography Standardization Project is indistinguishability under adaptive chosen ciphertext attacks (IND-CCA2) (see Section 10.2 of {{RFC9958}}). The public/private key sizes, ciphertext sizes, and PQ security levels of ML-KEM are detailed in Section 12 of {{RFC9958}}.
 
 # Security Considerations
 
@@ -623,9 +621,11 @@ In general, good cryptographic practice dictates that a given PQ-KEM key pair sh
 
 Implementations MUST enforce a locally configured maximum Total Attribute Length for fragmented attributes. If the Total Attribute Length exceeds this limit, the attribute MUST be rejected and the authentication exchange aborted. This limit has to be chosen to mitigate DoS attack with support for large PQC key material.
 
+The pseudo-random function (PRF') binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key is an input to the computation of the shared secret (ss) (line 2 of ML-KEM.Encaps algorithm in [FIPS203]).  These computational binding properties for KEMs are defined in [CDM].
+
 ## Selecting ML-KEM Variants
 
-ML-KEM is believed to be IND-CCA2 secure based on multiple analyses. The ML-KEM variant and its underlying components should be selected consistently with the desired security level. For further clarity on the sizes and security levels of ML-KEM variants, please refer to the tables in Sections 12 and 13 of {{?I-D.ietf-pquip-pqc-engineers}}.
+ML-KEM is believed to be IND-CCA2 secure based on multiple analyses. The ML-KEM variant and its underlying components should be selected consistently with the desired security level. For further clarity on the sizes and security levels of ML-KEM variants, please refer to the tables in Sections 12 and 13 of {{RFC9958}}.
 
 # IANA Considerations
 
