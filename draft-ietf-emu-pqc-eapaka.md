@@ -246,9 +246,7 @@ octets.
 
 Total Attribute Length MUST be at least large enough
 to contain the minimal header of the fragmented
-attribute.
-
-Total Attribute Length MUST NOT exceed the locally
+attribute. Total Attribute Length MUST NOT exceed the locally
 configured maximum fragment reassembly size.
 
 
@@ -323,8 +321,7 @@ The receiver MUST verify that:
 - The cumulative length of all received Fragment Data fields equals the
   Total Attribute Length.
 
-Any inconsistency in fragmentation state (including unexpected S bit
-usage, receipt of a new initial fragment while reassembly is in
+Any inconsistency in fragmentation state (including unexpected S or M bit usage, receipt of a new initial fragment while reassembly is in
 progress, length mismatch, or malformed sequencing) MUST be treated
 as a protocol error, and the authentication exchange MUST be
 aborted. If reassembly cannot be successfully completed after a bounded
