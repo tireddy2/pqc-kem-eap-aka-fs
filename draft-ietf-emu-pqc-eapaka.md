@@ -55,14 +55,6 @@ informative:
      title: "PQC - API notes"
      target: https://csrc.nist.gov/CSRC/media/Projects/Post-Quantum-Cryptography/documents/example-files/api-notes.pdf
      date: false
-  FO:
-     title: "Secure Integration of Asymmetric and Symmetric Encryption Schemes"
-     target: https://link.springer.com/article/10.1007/s00145-011-9114-1
-     date: false
-  HHK:
-     title: "A Modular Analysis of the Fujisaki-Okamoto Transformation"
-     target: https://link.springer.com/chapter/10.1007/978-3-319-70500-2_12
-     date: false
   FIPS203:
      title: "FIPS-203: Module-Lattice-based Key-Encapsulation Mechanism Standard"
      target: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.203.pdf
@@ -142,7 +134,7 @@ KEMs are typically used in cases where two parties, hereby referred to as the "e
 
 The PQ KEM used in this document MUST be IND-CCA2 secure (As discussed in Section 9.2.1 in {{RFC9958}}).
 
-Note that during the transition from traditional to post-quantum algorithms, there may be a desire or a requirement for protocols that incorporate both types of algorithms until the post-quantum algorithms are fully trusted. HPKE can be extended to support hybrid post-quantum KEMs and the specifications for the use of HPKE with EAP-AKA' are described in {{?I-D.draft-ar-emu-pqc-eapaka}}.
+Note that during the transition from traditional to post-quantum algorithms, there may be a desire or a requirement for protocols that incorporate both types of algorithms until the post-quantum algorithms are fully trusted. HPKE can be extended to support hybrid post-quantum KEMs and the specifications for the use of HPKE with EAP-AKA' are described in {{?I-D.draft-ietf-emu-hybrid-pqc-eapaka}}.
 
 # PQ KEM Enhancements by Design
 
@@ -408,7 +400,7 @@ The term “ACK” in the above figure is used for illustrative purpose to descr
 
 # Protocol Construction
 
-The above section outlines how the fragmentation works. This section defines the construction for PQC KEM in EAP-AKA' FS and the other params that are sent via EAP Req/Resp AKA'-Challenge.
+The above section outlines how the fragmentation works. This section defines the construction for PQ KEM in EAP-AKA' FS and the other params that are sent via EAP Req/Resp AKA'-Challenge.
  
 ## Protocol Call Flow
 
@@ -440,11 +432,11 @@ The above section outlines how the fragmentation works. This section defines the
       |              |                            |<---------------+
       |      +-------+----------------------------+----------------+--+
       |      | Server now has the needed authentication vector. It    |
-      |      | generates an a PQC KEM key pair, sends the public key  |
+      |      | generates an a PQ KEM key pair, sends the public key   |
       |      | of that key pair and the first EAP method message      |
       |      | to the peer. In the message the AT_PUB_KEM attribute   |
-      |      | carries the PQC KEM public key and the AT_KDF_FS       | 
-      |      | attribute carries PQC KEM algorithm. Both of           |
+      |      | carries the PQ KEM public key and the AT_KDF_FS        | 
+      |      | attribute carries PQ KEM algorithm. Both of            |
       |      | these are skippable attributes that can be ignored     |
       |      | if the peer does not support this extension.           |
       |      +-------+----------------------------+----------------+--+
@@ -472,7 +464,7 @@ The above section outlines how the fragmentation works. This section defines the
     +--+--------------+----------------------------+---------+     |
     | The peer now has everything to respond. If it wants to |     |
     | participate in the FS extension, it will calculate a   |     |
-    | PQC KEM shared secret key based on the server's PQC    |     |
+    | PQ KEM shared secret key based on the server's PQC     |     |
     | KEM public key. Finally, it proceeds to derive all     |     |
     | EAP-AKA' key values and  constructs a full response.   |     |
     +--+--------------+----------------------------+---------+     |
@@ -483,12 +475,12 @@ The above section outlines how the fragmentation works. This section defines the
       |              +--------------------------->|                |
       |      +-------+----------------------------+----------------+--+
       |      | The server now has all the necessary values. It        |
-      |      | generates the PQC KEM shared secret and checks the RES |
+      |      | generates the PQ KEM shared secret and checks the RES  |
       |      | and MAC values received in AT_RES and AT_MAC,          |
       |      | respectively. Success requires both to be found        |
       |      | correct. Note that when this document is used,         |
       |      | the keys generated from EAP-AKA' are based on CK, IK,  |
-      |      | and PQC KEM shared secret value. When the PQ KEM       |
+      |      | and PQ KEM shared secret value. When the PQ KEM        |
       |      | extension is successfully negotiated, compromise of    |
       |      | the AKA long-term key alone does not enable an         |
       |      | adversary to derive MK_PQ_SHARED_SECRET from a         |
@@ -507,13 +499,13 @@ The above section outlines how the fragmentation works. This section defines the
 
 We outline the following key steps in the protocol:
 
-- Server generates the PQC KEM public key(pk), private key (sk) pair. The server will generate the Authentication Vector (AV). The server PQC KEM key pair is derived as:
+- Server generates the PQ KEM public key(pk), private key (sk) pair. The server will generate the Authentication Vector (AV). The server PQ KEM key pair is derived as:
 
 ~~~
    (pk, sk) = kemKeyGen()
 ~~~
 
-- The server will store the expected response XRES, the PQC KEM private key sk. The server will forward the authenticator part (AUTH) of the AV to peer along with pk.
+- The server will store the expected response XRES, the PQ KEM private key sk. The server will forward the authenticator part (AUTH) of the AV to peer along with pk.
 
 - The USIM will validate the AUTN received, also verifies the MAC. After the verification is successful and if the peer also supports the forward secrecy, peer will invoke kemEncaps using pk:
 
@@ -535,7 +527,7 @@ The decapsulated ss from kemDecaps is the shared secret key derived from kemEnca
 
 ~~~
    MK = PRF'(IK'|CK',"EAP-AKA'"|Identity)
-   ct, ss = kemEncaps(pk)
+   (ct, ss) = kemEncaps(pk)
    MK_PQ_SHARED_SECRET = PRF'(IK'|CK'|ss,"EAP-AKA' FS"| Length(Identity) | Identity | Length(ct) | ct)
    K_encr = MK[0..127]
    K_aut = MK[128..383]
@@ -544,7 +536,7 @@ The decapsulated ss from kemDecaps is the shared secret key derived from kemEnca
    EMSK = MK_PQ_SHARED_SECRET [768..1279]
 ~~~
 
-where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. Length(X) is the length of X in octets, encoded as a 2-octet unsigned integer in network byte order.
+where, pk is PQ KEM public key from the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. Length(X) is the length of X in octets, encoded as a 2-octet unsigned integer in network byte order.
 
 
 # Extensions to EAP-AKA' FS
@@ -580,11 +572,11 @@ where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from t
 
    The total length of the attribute in octets is obtained by multiplying this field by 4.
 
-   This differs from the attribute format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte. The modification is necessary because PQC KEM public keys, such as those defined in ML-KEM-1024, will be 1568 bytes, which would exceed the 1024-byte limit imposed by the original EAP-AKA format.
+   This differs from the attribute format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte. The modification is necessary because PQ KEM public keys, such as those defined in ML-KEM-1024, will be 1568 bytes, which would exceed the 1024-byte limit imposed by the original EAP-AKA format.
 
    Value: 
 
-      *  EAP-Request: It contains the public key, which is the PQC KEM public key from the EAP server.
+      *  EAP-Request: It contains the public key, which is the PQ KEM public key from the EAP server.
 
    Because the length of the attribute must be a multiple of 4 bytes, the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
 
@@ -619,11 +611,11 @@ where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from t
 
    The total length of the attribute in octets is obtained by multiplying this field by 4.
    
-   This differs from the format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte. The change is necessary because ciphertexts produced by PQC KEM algorithms,such as 1568 bytes in ML-KEM-1024 will exceed the 1024 byte limit imposed by the original EAP-AKA attribute format.
+   This differs from the format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte. The change is necessary because ciphertexts produced by PQ KEM algorithms, such as 1568 bytes in ML-KEM-1024 will exceed the 1024 byte limit imposed by the original EAP-AKA attribute format.
 
    Value:
       
-      *  EAP-Response: It contains the ciphertext (ct) from the PQC KEM Encapsulation function from the EAP peer.
+      *  EAP-Response: It contains the ciphertext (ct) from the PQ KEM Encapsulation function from the EAP peer.
 
 
    Because the length of the attribute must be a multiple of 4 bytes, the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
@@ -640,12 +632,12 @@ If no mutually supported ML-KEM-based value is selected, the endpoints follow th
 
 # Capability Negotiation
 
-Support for PQC KEM is negotiated using the AT_KDF_FS attribute.
+Support for PQ KEM is negotiated using the AT_KDF_FS attribute.
 
 AT_PUB_KEM and AT_KEM_CT use an extended attribute header format
 that is incompatible with legacy EAP-AKA and EAP-AKA' implementations.
 Therefore, these attributes MUST NOT be sent unless a mutually
-supported PQC KEM has been successfully negotiated via AT_KDF_FS.
+supported PQ KEM has been successfully negotiated via AT_KDF_FS.
 
 # ML-KEM
 
@@ -659,7 +651,7 @@ In general, good cryptographic practice dictates that a given PQ KEM key pair sh
 
 Implementations MUST enforce a locally configured maximum Total Attribute Length for fragmented attributes. If the Total Attribute Length exceeds this limit, the attribute MUST be rejected and the authentication exchange aborted. This limit has to be chosen to mitigate DoS attack with support for large PQC key material.
 
-The pseudo-random function (PRF') binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQC KEM public key is an input to the computation of the shared secret (ss) (line 2 of ML-KEM.Encaps algorithm in [FIPS203]).  These computational binding properties for KEMs are defined in [CDM].
+The pseudo-random function (PRF') binds the shared secret to the ciphertext (ct), achieving MAL-BIND-K-CT. The ML-KEM already achieves MAL-BIND-K-PK as the hash of the PQ KEM public key is an input to the computation of the shared secret (ss) (line 1 of ML-KEM.Encaps_Internal algorithm in {{FIPS203}}).  These computational binding properties for KEMs are defined in {{CDM}}.
 
 ## Selecting ML-KEM Variants
 
@@ -673,7 +665,7 @@ ML-KEM is believed to be IND-CCA2 secure based on multiple analyses. The ML-KEM 
    "Attribute Types" registry under the "EAP-SIM/AKA/AKA'" group.
  
    IANA is requested to update the registry "EAP-AKA' AT_KDF_FS
-   Key Derivation Function Values" with the PQC KEM algorithm entries:
+   Key Derivation Function Values" with the PQ KEM algorithm entries:
 
 ~~~
    +=========+===============================+=========================+
