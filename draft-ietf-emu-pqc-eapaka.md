@@ -46,6 +46,8 @@ normative:
   RFC9678:  
   RFC2716:
   RFC9958:
+  RFC3748:
+  RFC9794:
 
 informative:
 
@@ -78,21 +80,21 @@ informative:
 Forward Secrecy for the Extensible Authentication Protocol Method for Authentication and Key Agreement (EAP-AKA' FS) is specified in {{RFC9678}}. It updates {{RFC9048}} with an optional extension that
 provides ephemeral key exchange using the traditional Ephemeral Elliptic Curve Diffie-Hellman (ECDHE) key agreement algorithm. This extension enables perfect forward secrecy (PFS). However, it is susceptible to future threats from Cryptographically Relevant Quantum Computers, which could potentially compromise a traditional ephemeral public key. If the adversary has also obtained knowledge of the long-term key and ephemeral public key, it could compromise session keys generated as part of the authentication run in EAP-AKA'.
 
-This draft aims to enhance the security of EAP-AKA' FS protocol by making it quantum-safe using Post-Quantum Key Encapsulation Mechanisms (PQ-KEMs).
+This draft aims to enhance the security of EAP-AKA' FS protocol by making it quantum-safe using Post-Quantum Key Encapsulation Mechanisms (PQ KEMs).
 
 --- middle
 
 # Introduction
 
-The Improved Extensible Authentication Protocol Method for 3GPP Mobile Network Authentication and Key Agreement (EAP-AKA') is specified in {{RFC9048}}. Forward Secrecy for EAP-AKA' (EAP-AKA' FS), defined in {{RFC9678}}, adds an optional ephemeral key exchange. This prevents an attacker who has gained access to the long-term key from obtaining session keys established in the past, assuming these have been properly deleted. EAP-AKA' FS mitigates passive attacks (e.g., large scale pervasive monitoring) against future sessions.
+The Improved Extensible Authentication Protocol Method for 3GPP Mobile Network Authentication and Key Agreement (EAP-AKA') is specified in {{RFC9048}}. Forward Secrecy for EAP-AKA' (EAP-AKA' FS), defined in {{RFC9678}}, adds an optional ephemeral key exchange. This prevents an attacker who subsequently obtains the long-term key from deriving session keys established in previous protocol runs from previously recorded protocol messages. EAP-AKA' FS also mitigates passive attacks, such as large-scale pervasive monitoring, against future sessions after compromise of the long-term key. An adversary that has obtained the long-term key may still attempt active attacks by participating in or modifying subsequent protocol exchanges.
 
 Nevertheless, EAP-AKA' FS uses traditional public-key algorithms (e.g., ECDH) which will be broken by a Cryptographically Relevant Quantum Computer (CRQC) using Shor's algorithm. The presence of a CRQC would render state-of-the-art, traditional public-key algorithms deployed today obsolete and insecure, since the assumptions about the intractability of the mathematical problems for these algorithms that offer confident levels of security today no longer apply in the presence of a CRQC. A CRQC could recover the SHARED_SECRET from the ECDHE public keys (Section 6.3 of {{RFC9678}}). If the adversary has also obtained knowledge of the long-term key, it could then compute CK', IK', and the SHARED_SECRET, and any derived output keys. This means that the CRQC would disable the forward security capability provided by {{RFC9678}}.
 
-Researchers have developed Post-Quantum Key Encapsulation Mechanisms (PQ-KEMs) to provide secure key establishment resistant against an adversary with access to a quantum computer.
+Researchers have developed Post-Quantum Key Encapsulation Mechanisms (PQ KEMs) to provide secure key establishment resistant against an adversary with access to a quantum computer.
 
-NIST has standardized PQC algorithms, with more expected to be standardized in the future ({{NISTFINAL}}). As these algorithms are secure against both quantum and classical computers, this document proposes a PQ-KEM for achieving perfect forward secrecy in EAP-AKA'.
+NIST has standardized PQC algorithms, with more expected to be standardized in the future ({{NISTFINAL}}). As these algorithms are designed to provide security against both classical and quantum adversaries, this document specifies the use of a PQ KEM instead of ECDHE for establishing the additional shared secret used to provide post-quantum forward secrecy in EAP-AKA'.
 
-The protocol construction can be used with other post-quantum Key Encapsulation Mechanisms (PQ-KEMs). However, the public key and ciphertext must each fit within 65,535 octets, which is the maximum attribute size supported by the fragmentation mechanism. This excludes PQ-KEMs such as Classic McEliece. This document specifies its use with ML-KEM. ML-KEM provides a one-pass (store-and-forward) cryptographic method for an originator to securely transmit keying material to a recipient using the recipient’s ML-KEM public key. Three parameter sets for ML-KEM are defined in {{FIPS203}}, namely ML-KEM-512, ML-KEM-768, and ML-KEM-1024, listed in order of increasing security strength and decreasing performance.
+The protocol construction can be used with other post-quantum Key Encapsulation Mechanisms (PQ KEMs). However, the public key and ciphertext must each fit within 65,535 octets, which is the maximum attribute size supported by the fragmentation mechanism. This excludes PQ KEMs such as Classic McEliece. This document specifies its use with ML-KEM. ML-KEM provides a one-pass (store-and-forward) cryptographic method for an originator to securely transmit keying material to a recipient using the recipient’s ML-KEM public key. Three parameter sets for ML-KEM are defined in {{FIPS203}}, namely ML-KEM-512, ML-KEM-768, and ML-KEM-1024, listed in order of increasing security strength and decreasing performance.
 
 # Conventions and Definitions
 
@@ -100,23 +102,25 @@ The protocol construction can be used with other post-quantum Key Encapsulation 
 
 # Terminology
 
-This document makes use of the terms defined in {{?I-D.ietf-pquip-pqt-hybrid-terminology}}. The following terms are repeately used in this specification:
+This document makes use of the terms defined in {{RFC9794}}. The following terms are repeately used in this specification:
 
 - KEM: Key Encapsulation Mechanism
-- PQ-KEM: Post-Quantum Key Encapsulation Mechanism
+- PQ KEM: Post-Quantum Key Encapsulation Mechanism
 - ML-KEM: Module-Lattice-based Key Encapsulation Mechanism
 
 For the purposes of this document, it is helpful to be able to divide cryptographic algorithms into two classes:
 
-"Asymmetric Traditional Algorithm":  An asymmetric cryptographic algorithm based on integer factorisation, finite field discrete logarithms or elliptic curve discrete logarithms, or related mathematical problems. 
+"Traditional asymmetric cryptographic algorithm":  An asymmetric cryptographic algorithm based on integer factorisation, finite field discrete logarithms or elliptic curve discrete logarithms, or related mathematical problems. 
 
-"Post-Quantum Algorithm":  An asymmetric cryptographic algorithm that is believed to be secure against attacks using quantum computers as well as classical computers. Post-quantum algorithms can also be called quantum-resistant or quantum-safe algorithms. Examples of Post-Quantum Algorithm include ML-KEM.
+"Post-quantum asymmetric cryptographic algorithm":  An asymmetric cryptographic algorithm that is believed to be secure against attacks using quantum computers as well as classical computers. Post-quantum algorithms can also be called quantum-resistant or quantum-safe algorithms. Examples of Post-Quantum Algorithm include ML-KEM.
+
+For brevity, this document may use "traditional algorithm" and "post-quantum algorithm", respectively, when the context is unambiguous.
 
 # Background on EAP-AKA' with forward secrecy
 
 In EAP-AKA', The authentication vector (AV) contains a random part RAND, an authenticator part AUTN used for authenticating the network to the USIM, an expected result part XRES, a 128-bit session key for integrity check IK, and a 128-bit session key for encryption CK.
 
-As described in the draft {{RFC9678}}, the server has the EAP identity of the peer. The server asks the AD to run AKA algorithm to generate RAND, AUTN, XRES, CK and IK. Further it also derives CK’ and IK’ keys which are tied to a particular network name. The server now generates the ephemeral key pair and sends the public key of that key pair and the first EAP method message to the peer. In this EAP message, AT_PUB_ECDHE (carries public key) and the AT_KDF_FS(carries other FS related parameters). Both of these might be ignored if USIM doesn’t support the Forward Secrecy extension. The peer checks if it wants to have a Forward extension in EAP AKA'. If yes, then it will eventually respond with AT_PUB_ECDHE and MAC. If not, it will ignore AT_PUB_ECDHE. If the peer wants to participate in FS extension, it will then generate its ECDH key pair, calculate a shared key based on its private key and server public key. The server will receive the RES from peer and AT_PUB_ECDHE. The shared key will be generated both in the peer and the server with key pairs exchanged, and later master key is also generated.
+As described in the draft {{RFC9678}}, the server has the EAP identity of the peer. The server asks the Authentication Database (AD) to run AKA algorithm to generate RAND, AUTN, XRES, CK and IK. Further it also derives CK’ and IK’ keys which are tied to a particular network name. The server now generates the ephemeral key pair and sends the public key of that key pair and the first EAP method message to the peer. In this EAP message, AT_PUB_ECDHE (carries public key) and the AT_KDF_FS (carries other FS related parameters). Both of these might be ignored if USIM doesn’t support the Forward Secrecy extension. The peer checks if it wants to have a Forward extension in EAP AKA'. If yes, then it will eventually respond with AT_PUB_ECDHE and MAC. If not, it will ignore AT_PUB_ECDHE. If the peer wants to participate in FS extension, it will then generate its ECDH key pair, calculate a shared key based on its private key and server public key. The server will receive the RES from peer and AT_PUB_ECDHE. The shared key will be generated both in the peer and the server with key pairs exchanged, and later master key is also generated.
 
 ~~~
 MK_ECDHE = PRF'(IK'| CK'|SHARED_SECRET,"EAP-AKA' FS"|Identity)
@@ -136,23 +140,23 @@ KEMs are typically used in cases where two parties, hereby referred to as the "e
 
 # Design Rationales {#rational}
 
-The PQ-KEM used in this document MUST be IND-CCA2 secure (As discussed in Section 9.2.1 in {{RFC9958}}).
+The PQ KEM used in this document MUST be IND-CCA2 secure (As discussed in Section 9.2.1 in {{RFC9958}}).
 
 Note that during the transition from traditional to post-quantum algorithms, there may be a desire or a requirement for protocols that incorporate both types of algorithms until the post-quantum algorithms are fully trusted. HPKE can be extended to support hybrid post-quantum KEMs and the specifications for the use of HPKE with EAP-AKA' are described in {{?I-D.draft-ar-emu-pqc-eapaka}}.
 
-# PQC KEM Enhancements by Design
+# PQ KEM Enhancements by Design
 
-We suggest the following changes and enhancements:
+This document specifies the following changes and enhancements to enable the use of PQ KEMs in EAP-AKA':
 
-- A new attribute, AT_PUB_KEM, is defined to carry the PQC KEM public key from the EAP server. 
+- A new attribute, AT_PUB_KEM, is defined to carry the PQ KEM public key from the EAP server. 
 
-- A new attribute, AT_KEM_CT, is defined to carry the ciphertext (ct) generated by the PQC KEM Encapsulation function from the EAP peer.
+- A new attribute, AT_KEM_CT, is defined to carry the ciphertext (ct) generated by the PQ KEM Encapsulation function from the EAP peer.
 
-- The AT_KDF_FS attribute is updated to indicate the PQC KEM for generating the Master Key MK_PQ_SHARED_SECRET.
+- The AT_KDF_FS attribute is updated to indicate the PQ KEM for generating the Master Key MK_PQ_SHARED_SECRET.
 
-- Multiple AT_KDF_FS attributes are included in the EAP-Request to handle the EAP peer not supporting PQC KEM.
+- Multiple AT_KDF_FS attributes are included in the EAP-Request to handle the EAP peer not supporting PQ KEM.
 
-- The PQC KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
+- The PQ KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
 
 - EAP-AKA and EAP-AKA′ FS do not define a native attribute-level   fragmentation mechanism. As PQC public keys and ciphertexts may  exceed the EAP MTU, this specification defines an explicit   attribute-level fragmentation mechanism (AT_FRAGMENT) to support transport of large attribute values.
 
@@ -192,8 +196,8 @@ Length:
 A 2-octet unsigned integer indicating the length of this
 AT_FRAGMENT attribute in multiples of 4 octets, including the
 Type, Reserved, Length, Flags, Total Attribute Length, Fragment
-Data, and any alignment padding. The total length of the
-attribute in octets is obtained by multiplying this field by 4.
+Data, and any alignment padding. The total length of the AT_FRAGMENT attribute
+in octets is obtained by multiplying this field by 4.
 
 Each AT_FRAGMENT attribute MUST have a Length that is a
 multiple of 4 octets.
@@ -333,6 +337,14 @@ Fragmentation does not modify the AT_MAC calculation rules defined in
 Processing of data contained in reassembled fragmented attributes MUST
 occur only after successful AT_MAC verification. Fragmentation therefore
 does not alter the integrity protection scope of the EAP packet.
+
+## Fragment Ordering and Flow Control
+
+Fragment transmission follows a lock-step request/response model. The sender MUST NOT transmit fragment N+1 until the EAP exchange acknowledging fragment N has completed. Consequently, at most one unacknowledged fragment exists in a fragmented attribute exchange at any time.
+
+Explicit fragment sequence numbers are therefore not required. The receiver determines fragment ordering from the current reassembly state and the EAP Request/Response exchange. Loss of a fragment or its acknowledgment is handled using the EAP retransmission procedures defined in {{RFC3748}}.
+
+This specification intentionally does not support pipelining multiple fragments or cumulative acknowledgments. Such mechanisms would require additional sequencing, buffering, loss-recovery, and flow-control procedures and would introduce an additional transport mechanism within EAP. The lock-step mechanism instead follows the EAP Request/Response model and limits the amount of unacknowledged fragmented data maintained by either endpoint.
 
 ## Applicability
 
@@ -476,12 +488,14 @@ The above section outlines how the fragmentation works. This section defines the
       |      | respectively. Success requires both to be found        |
       |      | correct. Note that when this document is used,         |
       |      | the keys generated from EAP-AKA' are based on CK, IK,  |
-      |      | and PQC KEM shared secret value. Even if there was an  |
-      |      | attacker who held the long-term key, only an active    |
-      |      | attacker could have determined the generated session   |
-      |      | keys; additionally an attacker with a cryptographically|
-      |      | relevant quantum computer cannot get access to the     |
-      |      | server KEM private key and decrypt the data.           |
+      |      | and PQC KEM shared secret value. When the PQ KEM       |
+      |      | extension is successfully negotiated, compromise of    |
+      |      | the AKA long-term key alone does not enable an         |
+      |      | adversary to derive MK_PQ_SHARED_SECRET from a         |
+      |      | previously recorded protocol exchange. Deriving this   |
+      |      | key additionally requires the PQ KEM shared secret ss, |
+      |      | whose confidentiality relies on the security of the.   |
+      |      | negotiated PQ KEM.                                     |
       |      +-------+----------------------------+----------------+--+
       |              |                            |                |
       |              |                EAP-Success |                |
@@ -496,28 +510,28 @@ We outline the following key steps in the protocol:
 - Server generates the PQC KEM public key(pk), private key (sk) pair. The server will generate the Authentication Vector (AV). The server PQC KEM key pair is derived as:
 
 ~~~
-   sk, pk = kemKeyGen()
+   (pk, sk) = kemKeyGen()
 ~~~
 
 - The server will store the expected response XRES, the PQC KEM private key sk. The server will forward the authenticator part (AUTH) of the AV to peer along with pk.
 
-- The USIM will validate the AUTN received, also verifies the MAC. After the verification is successful and if the peer also supports the Forward secrecy, peer will invoke kemEncaps using pk:
+- The USIM will validate the AUTN received, also verifies the MAC. After the verification is successful and if the peer also supports the forward secrecy, peer will invoke kemEncaps using pk:
 
 ~~~
-   ct, ss = kemEncaps(pk) 
+   (ct, ss) = kemEncaps(pk) 
 ~~~
 
 "ct" is the ciphertext from kemEncaps whereas "ss" is shared secret key. 
 
 - The peer will send the Authentication result RES and ct to the server.
 
-- The server will verify the RES with XRES. The server will use the ct and PQC KEM private key sk to generate shared secret:
+- The server will verify the RES with XRES. The server uses the ciphertext ct and the PQ KEM private key sk to decapsulate the shared secret:
 
 ~~~
    ss = kemDecaps(ct, sk)
 ~~~
 
-The generated ss from kemDecaps is the shared secret key derived from kemEncaps. The peer and the server first generate the MK_PQ_SHARED_SECRET and subsequently generate MSK, EMSK as shown below:
+The decapsulated ss from kemDecaps is the shared secret key derived from kemEncaps. The peer and the server first generate the MK_PQ_SHARED_SECRET and subsequently generate MSK, EMSK as shown below:
 
 ~~~
    MK = PRF'(IK'|CK',"EAP-AKA'"|Identity)
@@ -555,7 +569,7 @@ where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from t
 
    AT_PUB_KEM:
    
-   This is set to TBA1 BY IANA.
+   This is set to TBA1 by IANA.
 
    Reserved:
    A 1-byte field reserved for future use. Including this field ensures that the fixed header (Type, Reserved, Length) is 4 bytes long, maintaining 4-byte alignment for the following Value field. The Reserved field MUST be set to 0 on transmission and ignored on receipt.
@@ -566,7 +580,7 @@ where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from t
 
    The total length of the attribute in octets is obtained by multiplying this field by 4.
 
-   This differs from the attribute format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte.The modification is necessary because PQC KEM public keys, such as those defined in ML-KEM-1024, will be 1568 bytes, which would exceed the 1024-byte limit imposed by the original EAP-AKA format.
+   This differs from the attribute format used in EAP-AKA {{!RFC4187}}, where the Length field is 1 byte. The modification is necessary because PQC KEM public keys, such as those defined in ML-KEM-1024, will be 1568 bytes, which would exceed the 1024-byte limit imposed by the original EAP-AKA format.
 
    Value: 
 
@@ -594,7 +608,7 @@ where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from t
 
    AT_KEM_CT:
    
-   This is set to TBA2 BY IANA.
+   This is set to TBA2 by IANA.
 
    Reserved:
    A 1-byte field reserved for future use. The Reserved field MUST be set to 0 on transmission and ignored on receipt.
@@ -614,6 +628,16 @@ where, pk is PQC KEM public key from the EAP server, ct is the ciphertext from t
 
    Because the length of the attribute must be a multiple of 4 bytes, the sender pads the Value field with zero bytes when necessary. To retain the security of the keys, the sender SHALL generate a fresh value for each run of the protocol.
 
+## AT_KDF_FS {#kdfs}
+
+The AT_KDF_FS attribute is defined in Section 6.2 of {{RFC9678}} and is used to negotiate the forward-secrecy key derivation function. This document reuses the AT_KDF_FS attribute without modifying its attribute format. This document extends the "EAP-AKA' AT_KDF_FS Key Derivation Function Values" registry with values identifying the ML-KEM-based key derivation functions defined in this specification.
+
+The server indicates its supported forward-secrecy key derivation functions using AT_KDF_FS as specified in {{RFC9678}}. When multiple AT_KDF_FS attributes are included, their ordering indicates the server's preference, as specified by {{RFC9678}}.
+
+A peer supporting this specification selects a mutually supported ML-KEM-based key derivation function according to the negotiation procedure defined in {{RFC9678}}. Selection of an ML-KEM-based value indicates use of the corresponding ML-KEM parameter set and the MK_PQ_SHARED_SECRET key derivation defined in this document.
+
+If no mutually supported ML-KEM-based value is selected, the endpoints follow the negotiation and fallback behavior defined by {{RFC9678}} and {{RFC9048}}, as applicable.
+
 # Capability Negotiation
 
 Support for PQC KEM is negotiated using the AT_KDF_FS attribute.
@@ -629,9 +653,9 @@ ML-KEM offers several parameter sets with varying levels of security and perform
 
 # Security Considerations
 
-The security of the PQ-KEM algorithm depends on a high-quality pseudo-random number generator. For further discussion on random number generation, see {{?RFC4086}}.
+The security of the PQ KEM algorithm depends on a high-quality pseudo-random number generator. For further discussion on random number generation, see {{?RFC4086}}.
 
-In general, good cryptographic practice dictates that a given PQ-KEM key pair should be used in only one EAP session. This practice mitigates the risk that compromise of one EAP session will not compromise the security of another EAP session and is essential for maintaining forward security.
+In general, good cryptographic practice dictates that a given PQ KEM key pair should be used in only one EAP session. This practice mitigates the risk that compromise of one EAP session will not compromise the security of another EAP session and is essential for maintaining forward security.
 
 Implementations MUST enforce a locally configured maximum Total Attribute Length for fragmented attributes. If the Total Attribute Length exceeds this limit, the attribute MUST be rejected and the authentication exchange aborted. This limit has to be chosen to mitigate DoS attack with support for large PQC key material.
 
