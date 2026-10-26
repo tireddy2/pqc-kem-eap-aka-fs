@@ -94,7 +94,7 @@ The protocol construction can be used with other post-quantum Key Encapsulation 
 
 # Terminology
 
-This document makes use of the terms defined in {{RFC9794}}. The following terms are repeately used in this specification:
+This document makes use of the terms defined in {{RFC9794}}. The following terms are repeatedly used in this specification:
 
 - KEM: Key Encapsulation Mechanism
 - PQ KEM: Post-Quantum Key Encapsulation Mechanism
@@ -432,7 +432,7 @@ The above section outlines how the fragmentation works. This section defines the
       |              |                            |<---------------+
       |      +-------+----------------------------+----------------+--+
       |      | Server now has the needed authentication vector. It    |
-      |      | generates an a PQ KEM key pair, sends the public key   |
+      |      | generates a PQ KEM key pair, sends the public key      |
       |      | of that key pair and the first EAP method message      |
       |      | to the peer. In the message the AT_PUB_KEM attribute   |
       |      | carries the PQ KEM public key and the AT_KDF_FS        | 
@@ -486,7 +486,7 @@ The above section outlines how the fragmentation works. This section defines the
       |      | adversary to derive MK_PQ_SHARED_SECRET from a         |
       |      | previously recorded protocol exchange. Deriving this   |
       |      | key additionally requires the PQ KEM shared secret ss, |
-      |      | whose confidentiality relies on the security of the.   |
+      |      | whose confidentiality relies on the security of the    |
       |      | negotiated PQ KEM.                                     |
       |      +-------+----------------------------+----------------+--+
       |              |                            |                |
