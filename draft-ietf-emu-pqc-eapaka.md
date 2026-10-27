@@ -148,7 +148,7 @@ This document specifies the following changes and enhancements to enable the use
 
 - Multiple AT_KDF_FS attributes are included in the EAP-Request to handle the EAP peer not supporting PQ KEM.
 
-- The PQ KEM can be included first in the AT_KDF_FS attribute in the EAP-Request to indicate a higher priority for its use compared to the traditional key derivation functions.
+- The ECDHE value is listed first in AT_KDF_FS so that legacy peers are not affected. A peer that supports this specification requests the PQ KEM as described in {{negotiation}}.
 
 - EAP-AKA and EAP-AKA′ FS do not define a native attribute-level   fragmentation mechanism. As PQC public keys and ciphertexts may  exceed the EAP MTU, this specification defines an explicit   attribute-level fragmentation mechanism (AT_FRAGMENT) to support transport of large attribute values.
 
@@ -342,6 +342,12 @@ This specification intentionally does not support pipelining multiple fragments 
 
 This fragmentation mechanism applies to any attribute within this EAP method whose encoded length exceeds the EAP MTU. (e.g., AT_PUB_KEM, AT_KEM_CT, or AT_IDENTITY carrying a large SUCI). Attributes that fit within a single EAP packet MUST be sent unfragmented.
 
+AKA'-Identity messages are not protected by AT_MAC, because no keys exist yet. AT_CHECKCODE ({{RFC4187}}) carries a hash of all AKA'-Identity messages in the later AKA'-Challenge messages, which are protected by AT_MAC. Each side compares the received hash with its own, so any modification of the AKA'-Identity messages causes authentication to fail.
+
+If AT_FRAGMENT is not used in AKA'-Identity messages, this document does not change the use of AT_CHECKCODE; it remains optional as specified in {{RFC4187}}.
+
+If AT_FRAGMENT is used in any AKA'-Identity message, AT_CHECKCODE MUST be included in both the EAP-Request/AKA'-Challenge and the EAP-Response/AKA'-Challenge. Section 10.13 of {{RFC4187}} requires this because AT_FRAGMENT is an attribute not defined in {{RFC4187}}.
+
 The following diagram details how the fragmentation works for both request and response:
 
 ~~~ artwork
@@ -432,28 +438,51 @@ The above section outlines how the fragmentation works. This section defines the
       |              |                            |<---------------+
       |      +-------+----------------------------+----------------+--+
       |      | Server now has the needed authentication vector. It    |
-      |      | generates a PQ KEM key pair, sends the public key      |
-      |      | of that key pair and the first EAP method message      |
-      |      | to the peer. In the message the AT_PUB_KEM attribute   |
-      |      | carries the PQ KEM public key and the AT_KDF_FS        | 
-      |      | attribute carries PQ KEM algorithm. Both of            |
-      |      | these are skippable attributes that can be ignored     |
-      |      | if the peer does not support this extension.           |
+      |      | generates an ECDHE key pair and a PQ KEM key pair. It  |
+      |      | lists an ECDHE value first in AT_KDF_FS, followed by   |
+      |      | the ML-KEM values, and includes AT_PUB_ECDHE but not   |
+      |      | AT_PUB_KEM.                                            |
       |      +-------+----------------------------+----------------+--+
       |              |                            |                |
-      |              | EAP-Req/AKA'-Challenge,    |                |
-      |              |  AT_RAND, AT_AUTN, AT_KDF, |                |
-      |              |   AT_KDF_FS, AT_KDF_INPUT, |                |
-      |              |      AT_PUB_KEM, AT_MAC    |                |
+      |              | EAP-Req/AKA'-Challenge     |                |
+      |              | AT_RAND, AT_AUTN, AT_KDF,  |                |
+      |              | AT_KDF_INPUT,              |                |
+      |              | AT_KDF_FS (ECDHE),         |                |
+      |              | AT_KDF_FS (ML-KEM),        |                |
+      |              | AT_PUB_ECDHE, AT_MAC       |                |
       |              |<---------------------------+                |
     +--+--------------+----------------------------+---------+     |
-    | The peer checks if it wants to do the FS extension. If |     |
-    | yes, it will eventually respond with AT_KEM_CT and     |     |
-    | AT_MAC. If not, it will ignore AT_PUB_KEM and          |     |
-    | AT_KDF_FS and base all calculations on basic EAP-AKA'  |     |
-    | attributes, continuing just as in EAP-AKA' per RFC     |     |
-    | 9048 rules. In any case, the peer needs to query the   |     |
-    | auth parameters from the USIM card.                    |     |
+    | The peer checks if it wants to do the FS extension. A  |     |
+    | peer that does not support RFC 9678 ignores AT_KDF_FS  |     |
+    | and AT_PUB_ECDHE and continues per RFC 9048. A peer    |     |
+    | that supports RFC 9678 but not this document continues |     |
+    | with ECDHE per RFC 9678. A peer that supports this     |     |
+    | document requests the ML-KEM value using the change    |     |
+    | procedure in Section 6.2 of RFC 9678. It does not run  |     |
+    | the AKA algorithm on this message.                     |     |
+    +--+--------------+----------------------------+---------+     |
+      |              |                            |                |
+      |              | EAP-Resp/AKA'-Challenge    |                |
+      |              | AT_KDF_FS (ML-KEM)         |                |
+      |              +--------------------------->|                |
+      |      +-------+----------------------------+----------------+--+
+      |      | The server re-sends the challenge with the selected    |
+      |      | ML-KEM value first in AT_KDF_FS, followed by the       |
+      |      | original list, and includes AT_PUB_KEM instead of      |
+      |      | AT_PUB_ECDHE.                                          |
+      |      +-------+----------------------------+----------------+--+
+      |              |                            |                |
+      |              | EAP-Req/AKA'-Challenge     |                |
+      |              | AT_RAND, AT_AUTN, AT_KDF,  |                |
+      |              | AT_KDF_INPUT,              |                |
+      |              | AT_KDF_FS (ML-KEM),        |                |
+      |              | AT_KDF_FS (ECDHE),         |                |
+      |              | AT_KDF_FS (ML-KEM),        |                |
+      |              | AT_PUB_KEM, AT_MAC         |                |
+      |              |<---------------------------+                |
+    +--+--------------+----------------------------+---------+     |
+    | The peer queries the auth parameters from the USIM     |     |
+    | card.                                                  |     |
     +--+--------------+----------------------------+---------+     |
       |              |                            |                |
       |   RAND, AUTN |                            |                |
@@ -462,11 +491,12 @@ The above section outlines how the fragmentation works. This section defines the
       | CK, IK, RES  |                            |                |
       +------------->|                            |                |
     +--+--------------+----------------------------+---------+     |
-    | The peer now has everything to respond. If it wants to |     |
-    | participate in the FS extension, it will calculate a   |     |
-    | PQ KEM shared secret key based on the server's PQC     |     |
-    | KEM public key. Finally, it proceeds to derive all     |     |
-    | EAP-AKA' key values and  constructs a full response.   |     |
+    | The peer verifies AT_MAC and checks that the AT_KDF_FS |     |
+    | list differs from the original list only by the        |     |
+    | requested change (Section 6.2 of RFC 9678). It then    |     |
+    | calculates the PQ KEM shared secret from the server's  |     |
+    | PQ KEM public key, derives all EAP-AKA' key values,    |     |
+    | and constructs a full response.                        |     |
     +--+--------------+----------------------------+---------+     |
       |              |                            |                |
       |              |EAP-Resp/AKA'-Challenge     |                |
@@ -630,14 +660,20 @@ A peer supporting this specification selects a mutually supported ML-KEM-based k
 
 If no mutually supported ML-KEM-based value is selected, the endpoints follow the negotiation and fallback behavior defined by {{RFC9678}} and {{RFC9048}}, as applicable.
 
-# Capability Negotiation
+# Capability Negotiation {#negotiation}
 
 Support for PQ KEM is negotiated using the AT_KDF_FS attribute.
 
-AT_PUB_KEM and AT_KEM_CT use an extended attribute header format
+AT_PUB_KEM, AT_KEM_CT, and AT_FRAGMENT use an extended attribute header format
 that is incompatible with legacy EAP-AKA and EAP-AKA' implementations.
 Therefore, these attributes MUST NOT be sent unless a mutually
 supported PQ KEM has been successfully negotiated via AT_KDF_FS.
+
+To negotiate, the server lists an ECDHE value first in AT_KDF_FS,
+followed by the ML-KEM values, and includes AT_PUB_ECDHE but not
+AT_PUB_KEM. A peer that supports this specification requests an
+ML-KEM value using the change procedure in Section 6.2 of {{RFC9678}}.
+The server then re-sends the AKA'-Challenge with AT_PUB_KEM.
 
 # ML-KEM
 
@@ -648,6 +684,8 @@ ML-KEM offers several parameter sets with varying levels of security and perform
 The security of the PQ KEM algorithm depends on a high-quality pseudo-random number generator. For further discussion on random number generation, see {{?RFC4086}}.
 
 In general, good cryptographic practice dictates that a given PQ KEM key pair should be used in only one EAP session. This practice mitigates the risk that compromise of one EAP session will not compromise the security of another EAP session and is essential for maintaining forward security.
+
+AT_MAC protects the AT_KDF_FS offer and the peer's selection, because the final EAP-Request/AKA'-Challenge carries both the selected value and the original list (Section 6.2 of {{RFC9678}}). An attacker that holds the long-term key can still remove the ML-KEM offer. Deployments that need protection against this MUST require a PQ KEM by local policy.
 
 Implementations MUST enforce a locally configured maximum Total Attribute Length for fragmented attributes. If the Total Attribute Length exceeds this limit, the attribute MUST be rejected and the authentication exchange aborted. This limit has to be chosen to mitigate DoS attack with support for large PQC key material.
 
