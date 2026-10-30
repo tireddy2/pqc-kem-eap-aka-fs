@@ -346,7 +346,7 @@ AKA'-Identity messages are not protected by AT_MAC, because no keys exist yet. A
 
 If AT_FRAGMENT is not used in AKA'-Identity messages, this document does not change the use of AT_CHECKCODE; it remains optional as specified in {{RFC4187}}.
 
-If AT_FRAGMENT is used in any AKA'-Identity message, AT_CHECKCODE MUST be included in both the EAP-Request/AKA'-Challenge and the EAP-Response/AKA'-Challenge. Section 10.13 of {{RFC4187}} requires this because AT_FRAGMENT is an attribute not defined in {{RFC4187}}.
+If AT_FRAGMENT is used in any AKA'-Identity message, AT_CHECKCODE MUST be included in the EAP-Request/AKA'-Challenge carrying AT_PUB_KEM and in the EAP-Response/AKA'-Challenge carrying AT_RES. Section 10.13 of {{RFC4187}} requires this because AT_FRAGMENT is an attribute not defined in {{RFC4187}}.
 
 The following diagram details how the fragmentation works for both request and response:
 
@@ -553,12 +553,14 @@ We outline the following key steps in the protocol:
    ss = kemDecaps(ct, sk)
 ~~~
 
+If kemDecaps() fails, the server MUST behave as if authentication failed.
+
 The decapsulated ss from kemDecaps is the shared secret key derived from kemEncaps. The peer and the server first generate the MK_PQ_SHARED_SECRET and subsequently generate MSK, EMSK as shown below:
 
 ~~~
    MK = PRF'(IK'|CK',"EAP-AKA'"|Identity)
    (ct, ss) = kemEncaps(pk)
-   MK_PQ_SHARED_SECRET = PRF'(IK'|CK'|ss,"EAP-AKA' FS"| Length(Identity) | Identity | Length(ct) | ct)
+   MK_PQ_SHARED_SECRET = PRF'(IK'|CK'|ss,"EAP-AKA' FS PQ"| Length(Identity) | Identity | Length(ct) | ct)
    K_encr = MK[0..127]
    K_aut = MK[128..383]
    K_re = MK_PQ_SHARED_SECRET [0..255] 
@@ -566,7 +568,7 @@ The decapsulated ss from kemDecaps is the shared secret key derived from kemEnca
    EMSK = MK_PQ_SHARED_SECRET [768..1279]
 ~~~
 
-where, pk is PQ KEM public key from the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. Length(X) is the length of X in octets, encoded as a 2-octet unsigned integer in network byte order.
+where, pk is PQ KEM public key from the EAP server, ct is the ciphertext from the kemEncaps and it is triggered by the EAP peer only. Length(X) is the length of X in octets, encoded as a 2-octet unsigned integer in network byte order. The label "EAP-AKA' FS PQ" separates MK_PQ_SHARED_SECRET from MK_ECDHE (Section 6.3 of {{RFC9678}}).
 
 
 # Extensions to EAP-AKA' FS
@@ -666,14 +668,21 @@ Support for PQ KEM is negotiated using the AT_KDF_FS attribute.
 
 AT_PUB_KEM, AT_KEM_CT, and AT_FRAGMENT use an extended attribute header format
 that is incompatible with legacy EAP-AKA and EAP-AKA' implementations.
-Therefore, these attributes MUST NOT be sent unless a mutually
+Therefore, AT_PUB_KEM and AT_KEM_CT MUST NOT be sent, and AT_FRAGMENT
+MUST NOT be sent in AKA'-Challenge messages, unless a mutually
 supported PQ KEM has been successfully negotiated via AT_KDF_FS.
 
 To negotiate, the server lists an ECDHE value first in AT_KDF_FS,
 followed by the ML-KEM values, and includes AT_PUB_ECDHE but not
-AT_PUB_KEM. A peer that supports this specification requests an
+AT_PUB_KEM. A peer that supports this specification MUST request an
 ML-KEM value using the change procedure in Section 6.2 of {{RFC9678}}.
 The server then re-sends the AKA'-Challenge with AT_PUB_KEM.
+
+Either side MAY require a PQ KEM by local policy. A server that
+requires a PQ KEM and finds that the peer did not select one MUST
+behave as if authentication failed. A peer that requires a PQ KEM and
+finds no ML-KEM value in AT_KDF_FS MUST behave as if AUTN were
+incorrect. This follows Section 6.5.4 of {{RFC9678}}.
 
 # ML-KEM
 
