@@ -3,7 +3,7 @@ title: "Post-Quantum Key Encapsulation Mechanisms (PQ KEMs) in EAP-AKA prime"
 abbrev: "PQ KEMs in EAP-AKA prime"
 category: std
 
-docname: draft-ietf-emu-pqc-eapaka-04
+docname: draft-ietf-emu-pqc-eapaka-05
 submissiontype: IETF
 number:
 date:
@@ -730,4 +730,4 @@ ML-KEM is believed to be IND-CCA2 secure based on multiple analyses. The ML-KEM 
 
 # Acknowledgements
 
-This draft leverages text from {{RFC9678}}.
+This draft leverages text from {{RFC9678}}. The authors thank Wang Guilin, John Mattsson, Heikki Vatiainen and Alan DeKok for their contributions to this specification.
